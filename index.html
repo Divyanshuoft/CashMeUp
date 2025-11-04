@@ -21,35 +21,35 @@
     .tap:active { transform: scale(.98); }
     .chip { padding: .25rem .5rem; border-radius: 9999px; font-size:.75rem }
     * {
-  scrollbar-width: thin;
-  scrollbar-color: #1f2937 #374151; /* thumb, track */
-}
+      scrollbar-width: thin;
+      scrollbar-color: #1f2937 #374151; /* thumb, track */
+    }
 
-/* WebKit (Chrome/Edge/Safari) — main content scroll */
-#content::-webkit-scrollbar {
-  width: 10px;
-}
-#content::-webkit-scrollbar-track {
-  background: #374151;          /* bg-gray-700 */
-  border-radius: 9999px;
-}
-#content::-webkit-scrollbar-thumb {
-  background: #46403b;          /* orange accent */
-  border-radius: 9999px;
-  border: 2px solid #1f2937;    /* ring to blend with bg-gray-800 */
-}
-#content::-webkit-scrollbar-thumb:hover {
-  background: #555054;          /* lighter on hover */
-}
+    /* WebKit (Chrome/Edge/Safari) — main content scroll */
+    #content::-webkit-scrollbar {
+      width: 10px;
+    }
+    #content::-webkit-scrollbar-track {
+      background: #374151;          /* bg-gray-700 */
+      border-radius: 9999px;
+    }
+    #content::-webkit-scrollbar-thumb {
+      background: #46403b;          /* orange accent */
+      border-radius: 9999px;
+      border: 2px solid #1f2937;    /* ring to blend with bg-gray-800 */
+    }
+    #content::-webkit-scrollbar-thumb:hover {
+      background: #555054;          /* lighter on hover */
+    }
 
-/* Optional: global body scrollbar (if page itself scrolls) */
-body::-webkit-scrollbar { width: 10px; }
-body::-webkit-scrollbar-track { background: #374151; }
-body::-webkit-scrollbar-thumb {
-  background: #4d4642;
-  border-radius: 9999px;
-  border: 2px solid #1f2937;
-}
+    /* Optional: global body scrollbar (if page itself scrolls) */
+    body::-webkit-scrollbar { width: 10px; }
+    body::-webkit-scrollbar-track { background: #374151; }
+    body::-webkit-scrollbar-thumb {
+      background: #4d4642;
+      border-radius: 9999px;
+      border: 2px solid #1f2937;
+    }
   </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex justify-center items-center p-4">
@@ -101,7 +101,7 @@ body::-webkit-scrollbar-thumb {
       <div class="absolute bottom-0 inset-x-0 p-4">
         <div class="glass rounded-2xl p-3 flex justify-around items-center text-2xl">
           <button id="btnHome" class="tap" title="Home">🏠</button>
-<button id="btnAdd" class="tap bg-orange-500 text-white px-5 py-2 rounded-full mt-2 shadow-xl">＋</button>
+          <button id="btnAdd" class="tap bg-orange-500 text-white px-5 py-2 rounded-full mt-2 shadow-xl">＋</button>
           <button id="btnGroups" class="tap" title="Groups">👥</button>
         </div>
       </div>
@@ -119,7 +119,16 @@ body::-webkit-scrollbar-thumb {
       </div>
       <div class="grid grid-cols-2 gap-3">
         <input id="exName" class="col-span-2 bg-gray-700 rounded-xl px-3 py-2" placeholder="What for?"/>
-        <input id="exAmount" type="number" step="0.01" class="bg-gray-700 rounded-xl px-3 py-2" placeholder="Amount"/>
+        <div class="flex gap-2">
+          <input id="exAmount" type="number" step="0.01" class="bg-gray-700 rounded-xl px-3 py-2 flex-1" placeholder="Amount"/>
+          <select id="exCurrency" class="bg-gray-700 rounded-xl px-2 py-2 text-xs">
+            <option value="USD">USD</option>
+            <option value="CAD">CAD</option>
+            <option value="EUR">EUR</option>
+            <option value="INR">INR</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
         <input id="exDate" type="date" class="bg-gray-700 rounded-xl px-3 py-2"/>
         <select id="exGroup" class="bg-gray-700 rounded-xl px-3 py-2"></select>
         <select id="exPayer" class="bg-gray-700 rounded-xl px-3 py-2"></select>
@@ -127,7 +136,15 @@ body::-webkit-scrollbar-thumb {
           <option>Food</option><option>Rent</option><option>Utilities</option>
           <option>Transport</option><option>Shopping</option><option>Travel</option>
         </select>
-        <label class="flex items-center gap-2 text-sm col-span-2"><input id="exEqual" type="checkbox" checked> Split equally</label>
+
+        <label id="fxWrap" class="text-[11px] text-gray-300 col-span-2 hidden">
+          FX rate (1 <span id="fxCurFrom"></span> in <span id="fxCurTo"></span>)
+          <input id="exFxRate" type="number" step="0.0001" class="w-full bg-gray-700 rounded-xl px-3 py-1 mt-1" placeholder="e.g. 1.47">
+        </label>
+
+        <label class="flex items-center gap-2 text-sm col-span-2">
+          <input id="exEqual" type="checkbox" checked> Split equally
+        </label>
         <div id="customSplitWrap" class="col-span-2 hidden">
           <div class="text-xs text-gray-300 mb-1">Custom split per member</div>
           <div id="customSplit" class="space-y-2"></div>
@@ -139,9 +156,28 @@ body::-webkit-scrollbar-thumb {
             <button id="btnParseReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600">Parse</button>
           </div>
           <div class="bg-gray-700 rounded-xl p-2">
-            <div class="text-xs text-gray-300 mb-1">Scan receipt image</div>
+            <div class="text-xs text-gray-300 mb-1">Scan receipt</div>
+
+            <!-- Upload from gallery -->
             <input id="exReceiptImg" type="file" accept="image/*" class="w-full text-xs bg-gray-800 rounded-lg p-2"/>
-            <button id="btnScanReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600">Scan</button>
+            <button id="btnScanReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600">
+              Scan from image
+            </button>
+
+            <!-- Or use camera -->
+            <button id="btnCameraReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600 w-full">
+              📸 Use camera
+            </button>
+            <video id="receiptVideo"
+                   class="mt-2 w-full rounded-lg hidden"
+                   autoplay
+                   playsinline></video>
+            <button id="btnCaptureReceipt"
+                    class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600 w-full hidden">
+              Capture & scan
+            </button>
+
+            <div id="receiptSummary" class="mt-2 text-[11px] text-gray-300 hidden"></div>
           </div>
         </div>
         <div class="col-span-2 grid grid-cols-2 gap-2 mt-1">
@@ -172,6 +208,12 @@ body::-webkit-scrollbar-thumb {
       </div>
       <input id="grpName" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="Group name"/>
       <div>
+        <div class="text-xs text-gray-300 mb-1">Type</div>
+        <select id="grpType" class="w-full bg-gray-700 rounded-xl px-3 py-2 text-sm mb-2">
+          <option value="Regular">Regular</option>
+          <option value="Trip">Trip</option>
+          <option value="Event">Event</option>
+        </select>
         <div class="text-xs text-gray-300 mb-1">Members</div>
         <div id="grpMembers" class="grid grid-cols-2 gap-2"></div>
         <button id="btnAddMember" class="mt-2 text-xs px-2 py-1 rounded bg-gray-700">+ Add member</button>
@@ -206,8 +248,12 @@ body::-webkit-scrollbar-thumb {
           <div class="font-medium mb-2">Data</div>
           <div class="grid grid-cols-2 gap-2">
             <button id="btnExport" class="bg-gray-700 rounded-xl px-3 py-2">Export JSON</button>
-            <label class="bg-gray-700 rounded-xl px-3 py-2 text-center cursor-pointer">Import JSON<input id="fileImport" type="file" class="hidden" accept="application/json"></label>
+            <label class="bg-gray-700 rounded-xl px-3 py-2 text-center cursor-pointer">
+              Import JSON
+              <input id="fileImport" type="file" class="hidden" accept="application/json">
+            </label>
           </div>
+          <button id="btnDemo" class="mt-2 text-xs px-2 py-1 rounded bg-gray-700">Load Demo Dataset</button>
           <button id="btnReset" class="mt-2 text-xs px-2 py-1 rounded bg-red-600">Factory Reset</button>
         </div>
       </div>
@@ -231,10 +277,14 @@ body::-webkit-scrollbar-thumb {
         <button class="modal-close text-2xl">✕</button>
       </div>
       <div id="gvMembers" class="text-sm text-gray-300"></div>
+      <div id="gvTrip" class="text-xs text-gray-300 space-y-1"></div>
       <div class="border-t border-gray-700"></div>
       <div id="gvBalances" class="space-y-2 text-sm"></div>
       <div class="border-t border-gray-700"></div>
-      <div class="space-y-2">
+      <div id="gvMeta" class="space-y-2 text-xs text-gray-300"></div>
+      <div class="border-t border-gray-700"></div>
+      <div id="gvTx" class="space-y-2 text-xs text-gray-300"></div>
+      <div class="space-y-2 mt-2">
         <button id="btnSimplify" class="w-full bg-gray-700 rounded-xl px-3 py-2">🔁 Simplify Debts</button>
         <button id="btnSettleAll" class="w-full bg-orange-500 rounded-xl px-3 py-2">✅ Settle Up</button>
       </div>
@@ -250,6 +300,17 @@ body::-webkit-scrollbar-thumb {
       </div>
       <canvas id="chartMonthly" height="160"></canvas>
       <div id="insights" class="text-sm text-gray-300"></div>
+    </div>
+  </div>
+
+  <!-- Notifications -->
+  <div id="modalNotifications" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Reminders & Notifications</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <div id="notifList" class="text-sm text-gray-300 space-y-2"></div>
     </div>
   </div>
 
@@ -316,7 +377,7 @@ body::-webkit-scrollbar-thumb {
     document.getElementById('payGroup').textContent = g?.name || '—';
     document.getElementById('payAmount').textContent = fmt(myShare);
     const noteWrap = document.getElementById('payNoteWrap');
-    if(e.note){ noteWrap.classList.remove('hidden'); noteWrap.textContent = `Note: ${e.note}`; }
+    if(e.note){ noteWrap.classList.remove('hidden'); noteWrap.textContent = 'Note: ' + e.note; }
     else { noteWrap.classList.add('hidden'); }
 
     selectPm('card');
@@ -361,7 +422,10 @@ body::-webkit-scrollbar-thumb {
     if(!validatePayment()) return;
     const e = db.expenses.find(x=>x.id===payingExpenseId);
     if(!e){ return; }
-    e.status = 'paid'; // MVP: mark whole expense paid
+    if(e.status !== 'paid'){
+      e.status = 'paid';
+      e.settledAt = Date.now();
+    }
     store.save(db);
     closeAllModals();
     render();
@@ -379,29 +443,83 @@ body::-webkit-scrollbar-thumb {
       if(!raw){
         const seed = {
           users: ['Divyansh','Mustafa','Minjun','Rafsaan'],
-          profile: { name: 'Divyansh', currency: 'USD', avatar: '' }, // current user
-          groups: [{ id: uid(), name: 'Roommates', members:['Divyansh','Mustafa','Minjun'] }],
+          profile: {
+            name: 'Divyansh',
+            currency: 'USD',
+            avatar: '',
+            budgets: {
+              Food: 300,
+              Rent: 800,
+              Utilities: 150,
+              Transport: 120,
+              Shopping: 200,
+              Travel: 400
+            }
+          },
+          groups: [{ id: uid(), name: 'Roommates', type:'Regular', members:['Divyansh','Mustafa','Minjun'] }],
           expenses: [],
-          settings: { dark:true, pin:"" }
+          settings: { dark:true, pin:"", seenIntro:false }
         };
         localStorage.setItem(this.key, JSON.stringify(seed));
         return seed;
       }
-      try { return JSON.parse(raw); } catch { return { users:[], groups:[], expenses:[], settings:{dark:true,pin:""}, profile:{name:'User',currency:'USD',avatar:''} } }
+      let data;
+      try { data = JSON.parse(raw); }
+      catch {
+        data = {
+          users:[],
+          groups:[],
+          expenses:[],
+          settings:{dark:true,pin:"",seenIntro:false},
+          profile:{name:'User',currency:'USD',avatar:'', budgets:{
+            Food:300,Rent:800,Utilities:150,Transport:120,Shopping:200,Travel:400
+          }}
+        };
+      }
+      if(!data.profile) data.profile = {name:'User',currency:'USD',avatar:''};
+      if(!data.profile.currency) data.profile.currency = 'USD';
+      if(!data.profile.budgets){
+        data.profile.budgets = {
+          Food:300,Rent:800,Utilities:150,Transport:120,Shopping:200,Travel:400
+        };
+      }
+      if(!Array.isArray(data.users)) data.users = [];
+      if(!Array.isArray(data.groups)) data.groups = [];
+      data.groups.forEach(g=>{
+        if(!g.members) g.members = [];
+        if(!g.type) g.type = 'Regular';
+      });
+      if(!Array.isArray(data.expenses)) data.expenses = [];
+      if(!data.settings) data.settings = {dark:true,pin:"",seenIntro:false};
+      if(typeof data.settings.dark === 'undefined') data.settings.dark = true;
+      if(typeof data.settings.seenIntro === 'undefined') data.settings.seenIntro = false;
+      return data;
     },
     save(data){ localStorage.setItem(this.key, JSON.stringify(data)); }
   }
   let db = store.load();
 
   function uid(){ return Math.random().toString(36).slice(2,9); }
-  function fmt(n){ const v = (+n||0); return (db.profile?.currency||'USD')==='USD' ? `$${v.toFixed(2)}` : `${v.toFixed(2)} ${db.profile.currency}`; }
+  function baseCurrency(){ return db.profile?.currency || 'USD'; }
+  function fmt(n){
+    const v = (+n||0);
+    const cur = baseCurrency();
+    return cur === 'USD' ? ('$' + v.toFixed(2)) : (v.toFixed(2) + ' ' + cur);
+  }
 
   const content = document.getElementById('content');
   const toolbar = document.getElementById('toolbar');
   const toast = document.getElementById('toast');
-  function showToast(msg='Saved ✅'){ toast.textContent = msg; toast.classList.remove('hidden'); setTimeout(()=>toast.classList.add('hidden'), 1200); }
+  function showToast(msg='Saved ✅'){
+    toast.textContent = msg;
+    toast.classList.remove('hidden');
+    setTimeout(()=>toast.classList.add('hidden'), 1200);
+  }
 
-  function closeAllModals(){ document.querySelectorAll('.fixed.inset-0.z-50').forEach(m=>m.classList.add('hidden')); }
+  function closeAllModals(){
+    document.querySelectorAll('.fixed.inset-0.z-50').forEach(m=>m.classList.add('hidden'));
+    if(typeof stopReceiptCamera === 'function') stopReceiptCamera();
+  }
   document.querySelectorAll('.modal-close').forEach(b=> b.addEventListener('click', closeAllModals));
 
   const tabs = document.querySelectorAll('.tab-btn');
@@ -417,23 +535,50 @@ body::-webkit-scrollbar-thumb {
   document.getElementById('btnGroups').onclick = ()=>{ currentTab='groups'; render(); };
 
   const modalSettings = document.getElementById('modalSettings');
-  document.getElementById('btnSettings').onclick = ()=>{ refreshSettingsUI(); modalSettings.classList.remove('hidden'); modalSettings.classList.add('flex'); };
+  document.getElementById('btnSettings').onclick = ()=>{
+    refreshSettingsUI();
+    modalSettings.classList.remove('hidden');
+    modalSettings.classList.add('flex');
+  };
   function refreshSettingsUI(){
     document.getElementById('setDark').checked = !!db.settings.dark;
     document.getElementById('setPIN').value = db.settings.pin || '';
   }
-  document.getElementById('setDark').onchange = (e)=>{ db.settings.dark = e.target.checked; store.save(db); document.body.classList.toggle('bg-white', !db.settings.dark); };
-  document.getElementById('btnSavePIN').onclick = ()=>{ const v = document.getElementById('setPIN').value.trim(); if(v && v.length>=4) { db.settings.pin = v; store.save(db); showToast('PIN saved'); } };
+  document.getElementById('setDark').onchange = (e)=>{
+    db.settings.dark = e.target.checked;
+    store.save(db);
+    document.body.classList.toggle('bg-white', !db.settings.dark);
+  };
+  document.getElementById('btnSavePIN').onclick = ()=>{
+    const v = document.getElementById('setPIN').value.trim();
+    if(v && v.length>=4) {
+      db.settings.pin = v;
+      store.save(db);
+      showToast('PIN saved');
+    }
+  };
   document.getElementById('btnLockNow').onclick = ()=> lockApp();
 
   const lockScreen = document.getElementById('lockScreen');
-  function lockApp(){ lockScreen.classList.remove('hidden'); document.getElementById('pinInput').value=''; document.getElementById('pinMsg').textContent=''; }
-  document.getElementById('btnUnlock').onclick = ()=>{ const v = document.getElementById('pinInput').value.trim(); if(v === (db.settings.pin||'')) { lockScreen.classList.add('hidden'); } else { document.getElementById('pinMsg').textContent='Incorrect PIN'; } }
+  function lockApp(){
+    lockScreen.classList.remove('hidden');
+    document.getElementById('pinInput').value='';
+    document.getElementById('pinMsg').textContent='';
+  }
+  document.getElementById('btnUnlock').onclick = ()=>{
+    const v = document.getElementById('pinInput').value.trim();
+    if(v === (db.settings.pin||'')) {
+      lockScreen.classList.add('hidden');
+    } else {
+      document.getElementById('pinMsg').textContent='Incorrect PIN';
+    }
+  }
 
   const modalAdd = document.getElementById('modalAdd');
   document.getElementById('btnAdd').onclick = ()=>{ openAddExpense(); };
 
   function openAddExpense(id=null){
+    if(typeof stopReceiptCamera === 'function') stopReceiptCamera();
     populateAddExpense(id);
     document.getElementById('addTitle').textContent = id? 'Edit Expense' : 'Add Expense';
     modalAdd.classList.remove('hidden'); modalAdd.classList.add('flex');
@@ -441,53 +586,144 @@ body::-webkit-scrollbar-thumb {
 
   function populateAddExpense(id=null){
     const selGroup = document.getElementById('exGroup');
-    selGroup.innerHTML = db.groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    selGroup.innerHTML = db.groups.map(g=>'<option value="'+g.id+'">'+g.name+'</option>').join('');
     const selPayer = document.getElementById('exPayer');
-    selPayer.innerHTML = db.users.map(u=>`<option>${u}</option>`).join('');
+    selPayer.innerHTML = db.users.map(u=>'<option>'+u+'</option>').join('');
     document.getElementById('exDate').valueAsDate = new Date();
     document.getElementById('exName').value='';
     document.getElementById('exAmount').value='';
     document.getElementById('exCategory').value='Food';
     document.getElementById('exNote').value='';
     document.getElementById('exDueDays').value='';
-    document.getElementById('exEqual').checked = true; document.getElementById('customSplitWrap').classList.add('hidden');
+    document.getElementById('exEqual').checked = true;
+    document.getElementById('customSplitWrap').classList.add('hidden');
+    document.getElementById('receiptSummary').classList.add('hidden');
+    document.getElementById('receiptSummary').textContent = '';
+
+    const exCurrency = document.getElementById('exCurrency');
+    exCurrency.value = baseCurrency();
+    document.getElementById('exFxRate').value = '';
+    syncFxVisibility();
+
     buildCustomSplit();
     if(id){
       const e = db.expenses.find(x=>x.id===id);
       if(e){
+        const baseCur = baseCurrency();
+        const hasOrig = e.origCurrency && e.origCurrency !== baseCur && e.origAmount;
         document.getElementById('exName').value=e.name;
-        document.getElementById('exAmount').value=e.amount;
+        document.getElementById('exAmount').value = hasOrig ? e.origAmount : e.amount;
         document.getElementById('exDate').value=e.date;
         document.getElementById('exGroup').value=e.gId; buildCustomSplit();
         document.getElementById('exPayer').value=e.payer;
         document.getElementById('exCategory').value=e.category;
         document.getElementById('exNote').value=e.note||'';
-        document.getElementById('exEqual').checked=false; document.getElementById('customSplitWrap').classList.remove('hidden');
-        Object.entries(e.split).forEach(([m,v])=>{ const input = document.querySelector(`#customSplit [data-member="${m}"]`); if(input) input.value = v; });
+        if(hasOrig){
+          exCurrency.value = e.origCurrency;
+          document.getElementById('exFxRate').value = e.fxRate || '';
+        } else {
+          exCurrency.value = baseCur;
+          document.getElementById('exFxRate').value = '';
+        }
+        syncFxVisibility();
+
+        document.getElementById('exEqual').checked=false;
+        document.getElementById('customSplitWrap').classList.remove('hidden');
+        Object.entries(e.split).forEach(function(pair){
+          var m = pair[0], v = pair[1];
+          const input = document.querySelector('#customSplit [data-member="'+m+'"]');
+          if(input) input.value = v;
+        });
       }
     }
   }
 
-  document.getElementById('exEqual').onchange = (e)=>{ document.getElementById('customSplitWrap').classList.toggle('hidden', e.target.checked); }
+  document.getElementById('exEqual').onchange = (e)=>{
+    document.getElementById('customSplitWrap').classList.toggle('hidden', e.target.checked);
+  };
 
   function buildCustomSplit(){
     const wrap = document.getElementById('customSplit');
     const gId = document.getElementById('exGroup').value || (db.groups[0]?.id);
     const grp = db.groups.find(g=>g.id===gId);
-    if(!grp) { wrap.innerHTML = '<div class="text-xs text-red-300">Create a group first.</div>'; return; }
-    wrap.innerHTML = grp.members.map(m=>`
-      <div class="flex items-center gap-2">
-        <div class="w-28 text-gray-200">${m}</div>
-        <input data-member="${m}" type="number" step="0.01" class="flex-1 bg-gray-700 rounded-xl px-3 py-1" placeholder="$ amount">
-      </div>`).join('');
+    if(!grp) {
+      wrap.innerHTML = '<div class="text-xs text-red-300">Create a group first.</div>';
+      return;
+    }
+    wrap.innerHTML = grp.members.map(function(m){
+      return '<div class="flex items-center gap-2">' +
+               '<div class="w-28 text-gray-200">'+m+'</div>' +
+               '<input data-member="'+m+'" type="number" step="0.01" class="flex-1 bg-gray-700 rounded-xl px-3 py-1" placeholder="$ amount">' +
+             '</div>';
+    }).join('');
   }
   document.getElementById('exGroup').addEventListener('change', buildCustomSplit);
 
+  // FX visibility sync
+  function syncFxVisibility(){
+    const exCurrency = document.getElementById('exCurrency');
+    const wrap = document.getElementById('fxWrap');
+    const fromSpan = document.getElementById('fxCurFrom');
+    const toSpan = document.getElementById('fxCurTo');
+    const cur = exCurrency.value;
+    const base = baseCurrency();
+    if(cur && base && cur !== base){
+      wrap.classList.remove('hidden');
+      fromSpan.textContent = cur;
+      toSpan.textContent = base;
+    } else {
+      wrap.classList.add('hidden');
+    }
+  }
+  document.getElementById('exCurrency').addEventListener('change', syncFxVisibility);
+
   document.getElementById('btnParseReceipt').onclick = ()=>{
     const t = document.getElementById('exReceipt').value;
-    const nums = (t.match(/\d+[\.,]?\d*/g)||[]).map(x=>parseFloat(x.replace(',','.'))).filter(n=>!isNaN(n));
-    if(nums.length){ const total = Math.max(...nums); document.getElementById('exAmount').value = total.toFixed(2); showToast('Amount detected'); }
-    else { showToast('No numbers found'); }
+    const nums = (t.match(/\d+[\.,]?\d*/g)||[]).map(function(x){ return parseFloat(x.replace(',','.')); }).filter(function(n){ return !isNaN(n); });
+    if(nums.length){
+      const total = Math.max.apply(null, nums);
+      document.getElementById('exAmount').value = total.toFixed(2);
+      const summary = document.getElementById('receiptSummary');
+      summary.classList.remove('hidden');
+      summary.textContent = 'Detected total ' + total.toFixed(2) + ' from pasted text.';
+      showToast('Amount detected');
+    } else {
+      showToast('No numbers found');
+    }
+  };
+
+  function applyReceiptOcrData(data){
+    const summary = document.getElementById('receiptSummary');
+    let descParts = [];
+    if (data && (data.total || data.amount)) {
+      const total = (+data.total || +data.amount);
+      if (!isNaN(total)) {
+        document.getElementById('exAmount').value = total.toFixed(2);
+        descParts.push('total ' + total.toFixed(2));
+      }
+      if (data.date) {
+        document.getElementById('exDate').value =
+          (new Date(data.date)).toISOString().slice(0, 10);
+        descParts.push('date ' + (new Date(data.date)).toISOString().slice(0,10));
+      }
+      if (data.category) {
+        document.getElementById('exCategory').value = data.category;
+        descParts.push('category ' + data.category);
+      }
+      if (data.title) {
+        document.getElementById('exName').value = data.title;
+        descParts.push('title "' + data.title + '"');
+      }
+      if(descParts.length){
+        summary.classList.remove('hidden');
+        summary.textContent = 'Receipt summary: ' + descParts.join(', ') + '. Looks good? You can edit before saving.';
+      }
+      showToast('Receipt scanned');
+    } else {
+      summary.classList.add('hidden');
+      summary.textContent = '';
+      showToast('Scan failed');
+    }
   }
 
   document.getElementById('btnScanReceipt').onclick = async ()=>{
@@ -499,19 +735,127 @@ body::-webkit-scrollbar-thumb {
     try{
       const r = await fetch(OCR_ENDPOINT, { method:'POST', body: fd });
       const data = await r.json();
-      if(data && (data.total || data.amount)){
-        document.getElementById('exAmount').value = (+data.total || +data.amount).toFixed(2);
-        if(data.date) document.getElementById('exDate').value = (new Date(data.date)).toISOString().slice(0,10);
-        if(data.category) document.getElementById('exCategory').value = data.category;
-        if(data.title) document.getElementById('exName').value = data.title;
-        showToast('Receipt scanned');
-      } else { showToast('Scan failed'); }
-    }catch{ showToast('Scan error'); }
+      applyReceiptOcrData(data);
+    }catch{
+      showToast('Scan error');
+    }
+  };
+
+  // Camera receipt capture
+  let receiptCameraStream = null;
+  const receiptVideo = document.getElementById('receiptVideo');
+  const btnCameraReceipt = document.getElementById('btnCameraReceipt');
+  const btnCaptureReceipt = document.getElementById('btnCaptureReceipt');
+
+  function stopReceiptCamera(){
+    if (receiptCameraStream) {
+      receiptCameraStream.getTracks().forEach(function(t){ t.stop(); });
+      receiptCameraStream = null;
+    }
+    receiptVideo.srcObject = null;
+    receiptVideo.classList.add('hidden');
+    btnCaptureReceipt.classList.add('hidden');
+  }
+
+  btnCameraReceipt.onclick = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast('Camera not supported');
+      return;
+    }
+    try {
+      receiptCameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      receiptVideo.srcObject = receiptCameraStream;
+      receiptVideo.classList.remove('hidden');
+      btnCaptureReceipt.classList.remove('hidden');
+    } catch (e) {
+      console.error(e);
+      showToast('Cannot access camera');
+    }
+  };
+
+  btnCaptureReceipt.onclick = () => {
+    if (!receiptVideo.videoWidth || !receiptVideo.videoHeight) {
+      showToast('Camera not ready');
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = receiptVideo.videoWidth;
+    canvas.height = receiptVideo.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(receiptVideo, 0, 0);
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        showToast('Capture failed');
+        stopReceiptCamera();
+        return;
+      }
+      if (!OCR_ENDPOINT) {
+        showToast('Set OCR endpoint');
+        stopReceiptCamera();
+        return;
+      }
+      const fd = new FormData();
+      fd.append('file', blob, 'receipt.jpg');
+      if (OCR_KEY) fd.append('key', OCR_KEY);
+
+      try {
+        const r = await fetch(OCR_ENDPOINT, { method:'POST', body: fd });
+        const data = await r.json();
+        applyReceiptOcrData(data);
+      } catch (e) {
+        console.error(e);
+        showToast('Scan error');
+      } finally {
+        stopReceiptCamera();
+      }
+    }, 'image/jpeg', 0.9);
+  };
+
+  // Autofill from history (frequent pattern)
+  function autoFillFromHistory(){
+    if(db._editingId) return; // don't override when editing
+    const input = document.getElementById('exName');
+    const name = (input.value || '').trim().toLowerCase();
+    if(!name) return;
+    const last = db.expenses.slice().reverse().find(function(e){
+      return e.name && e.name.toLowerCase().includes(name);
+    });
+    if(!last) return;
+    // Only adjust some fields; don't overwrite user amount/date
+    document.getElementById('exCategory').value = last.category;
+    document.getElementById('exGroup').value = last.gId;
+    buildCustomSplit();
+    showToast('Using pattern from "'+last.name+'"');
+  }
+  document.getElementById('exName').addEventListener('blur', autoFillFromHistory);
+
+  // Budget helpers
+  function monthlySpendForCategory(cat, dateStr){
+    if(!dateStr) return 0;
+    const monthKey = dateStr.slice(0,7);
+    return db.expenses.filter(function(e){
+      const d = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
+      return e.category === cat && d === monthKey;
+    }).reduce(function(s,e){ return s + (e.amount||0); }, 0);
+  }
+
+  function checkBudgetWarning(cat, amount, dateStr){
+    const budgets = db.profile?.budgets;
+    if(!budgets || !budgets[cat]) return;
+    const existing = monthlySpendForCategory(cat, dateStr);
+    const newTotal = existing + amount;
+    if(newTotal > budgets[cat] + 0.01){
+      alert('Budget warning: ' + cat + ' would reach ' + fmt(newTotal) +
+            ' vs limit ' + fmt(budgets[cat]) + ' this month.');
+    }
   }
 
   document.getElementById('btnSaveEx').onclick = ()=>{
     const name = document.getElementById('exName').value.trim();
-    const amount = +document.getElementById('exAmount').value;
+    const rawAmount = +document.getElementById('exAmount').value;
     const date = document.getElementById('exDate').value;
     const gId = document.getElementById('exGroup').value;
     const payer = document.getElementById('exPayer').value;
@@ -520,8 +864,25 @@ body::-webkit-scrollbar-thumb {
     const equal = document.getElementById('exEqual').checked;
     const dueDays = +document.getElementById('exDueDays').value || 0;
     const withReminder = document.getElementById('exReminder').checked;
+    const currency = document.getElementById('exCurrency').value || baseCurrency();
+    const fxRate = +document.getElementById('exFxRate').value || null;
 
-    if(!name || !amount || !gId){ alert('Please fill name, amount and group'); return; }
+    if(!name || !rawAmount || !gId){ alert('Please fill name, amount and group'); return; }
+
+    const baseCur = baseCurrency();
+    let amount = rawAmount;
+    let origAmount = null;
+    let origCurrency = null;
+    let rate = null;
+
+    if(currency && currency !== baseCur && fxRate){
+      origAmount = rawAmount;
+      origCurrency = currency;
+      rate = fxRate;
+      amount = rawAmount * fxRate;
+    }
+
+    checkBudgetWarning(cat, amount, date || new Date().toISOString().slice(0,10));
 
     const group = db.groups.find(g=>g.id===gId);
     const split = {};
@@ -529,31 +890,66 @@ body::-webkit-scrollbar-thumb {
       const share = amount / group.members.length;
       group.members.forEach(m=> split[m] = +share.toFixed(2));
     } else {
-      let sum=0; document.querySelectorAll('#customSplit [data-member]').forEach(i=> sum += (+i.value||0));
+      let sum=0;
+      document.querySelectorAll('#customSplit [data-member]').forEach(function(i){
+        sum += (+i.value||0);
+      });
       if(Math.abs(sum-amount) > 0.01) { alert('Custom split must sum to total'); return; }
-      document.querySelectorAll('#customSplit [data-member]').forEach(i=> split[i.dataset.member] = +(i.value||0));
+      document.querySelectorAll('#customSplit [data-member]').forEach(function(i){
+        split[i.dataset.member] = +(i.value||0);
+      });
     }
 
     const editing = db._editingId || null;
     if(editing){
       const e = db.expenses.find(x=>x.id===editing);
       if(e){
-        Object.assign(e, { name, amount, date, gId, payer, category:cat, note, split,
+        Object.assign(e, {
+          name,
+          amount,
+          date,
+          gId,
+          payer,
+          category:cat,
+          note,
+          split,
+          origAmount,
+          origCurrency,
+          fxRate: rate,
           due: dueDays ? Date.now()+dueDays*864e5 : e.due,
-          remindAt: withReminder ? Date.now()+3*864e5 : e.remindAt });
+          remindAt: withReminder ? Date.now()+3*864e5 : e.remindAt
+        });
       }
       db._editingId = null;
       showToast('Expense updated');
     } else {
-      const exp = { id:uid(), name, amount, date, gId, payer, category:cat, note, split, status:'unpaid', created:Date.now(),
-                    due: dueDays ? Date.now()+dueDays*864e5 : null, remindAt: withReminder ? Date.now()+3*864e5 : null };
+      const now = Date.now();
+      const exp = {
+        id:uid(),
+        name,
+        amount,
+        date,
+        gId,
+        payer,
+        category:cat,
+        note,
+        split,
+        status:'unpaid',
+        created:now,
+        due: dueDays ? now+dueDays*864e5 : null,
+        remindAt: withReminder ? now+3*864e5 : null,
+        origAmount,
+        origCurrency,
+        fxRate: rate,
+        settledAt:null
+      };
       db.expenses.push(exp);
       showToast('Expense added');
     }
     store.save(db);
     closeAllModals();
     render();
-  }
+  };
 
   const modalGroup = document.getElementById('modalGroup');
   const grpMembers = document.getElementById('grpMembers');
@@ -562,238 +958,559 @@ body::-webkit-scrollbar-thumb {
   function renderGroupsScreen(){
     toolbar.innerHTML = '';
     content.innerHTML = '';
-    const header = el(`<div class="flex items-center justify-between mb-2">
-      <div class="text-lg font-semibold">Your Groups</div>
-      <div class="space-x-2">
-        <button id="btnNewGroup" class="px-3 py-1 rounded bg-orange-500">+ New</button>
-        <button id="btnOpenAnalytics" class="px-3 py-1 rounded bg-gray-700">📊 Insights</button>
-      </div>
-    </div>`);
+    const header = el(
+      '<div class="flex items-center justify-between mb-2">' +
+        '<div class="text-lg font-semibold">Your Groups</div>' +
+        '<div class="space-x-2">' +
+          '<button id="btnNewGroup" class="px-3 py-1 rounded bg-orange-500">+ New</button>' +
+          '<button id="btnOpenAnalytics" class="px-3 py-1 rounded bg-gray-700">📊 Insights</button>' +
+        '</div>' +
+      '</div>'
+    );
     content.appendChild(header);
 
-    db.groups.forEach(g=>{
-      const total = db.expenses.filter(e=>e.gId===g.id).reduce((s,e)=>s+e.amount,0);
-      const card = el(`<div class="bg-gray-700 rounded-2xl p-3 flex items-center justify-between">
-        <div>
-          <div class="text-sm text-gray-300">Group</div>
-          <div class="text-lg font-semibold">${g.name}</div>
-          <div class="text-xs text-gray-300">${g.members.join(', ')}</div>
-          <div class="text-xs text-gray-400 mt-1">Total: ${fmt(total)}</div>
-        </div>
-        <div class="space-x-2">
-          <button data-gv="${g.id}" class="px-3 py-1 rounded bg-gray-900">View</button>
-          <button data-invite="${g.id}" class="px-3 py-1 rounded bg-gray-900">Invite</button>
-        </div>
-      </div>`);
+    db.groups.forEach(function(g){
+      const total = db.expenses.filter(function(e){ return e.gId===g.id; }).reduce(function(s,e){ return s+e.amount; },0);
+      const fairness = calcGroupFairness(g.id);
+      let fairnessLine = '';
+      if(Object.keys(fairness).length){
+        // Show who is most overpaying/underpaying
+        let best = null;
+        Object.keys(fairness).forEach(function(m){
+          const f = fairness[m];
+          if(best === null || Math.abs(f.delta) > Math.abs(best.delta)) best = {name:m,delta:f.delta};
+        });
+        if(best){
+          const sign = best.delta>0?'+':'';
+          fairnessLine = ' • '+best.name+' '+sign+best.delta.toFixed(2)+' vs fair';
+        }
+      }
+      const typeLabel = g.type || 'Regular';
+      const card = el(
+        '<div class="bg-gray-700 rounded-2xl p-3 flex items-center justify-between">' +
+          '<div>' +
+            '<div class="text-sm text-gray-300">Group • '+typeLabel+'</div>' +
+            '<div class="text-lg font-semibold">'+g.name+'</div>' +
+            '<div class="text-xs text-gray-300">'+g.members.join(', ')+'</div>' +
+            '<div class="text-xs text-gray-400 mt-1">Total: '+fmt(total)+ fairnessLine +'</div>' +
+          '</div>' +
+          '<div class="space-x-2">' +
+            '<button data-gv="'+g.id+'" class="px-3 py-1 rounded bg-gray-900">View</button>' +
+            '<button data-invite="'+g.id+'" class="px-3 py-1 rounded bg-gray-900">Invite</button>' +
+          '</div>' +
+        '</div>'
+      );
       content.appendChild(card);
     });
 
-    document.getElementById('btnNewGroup').onclick = ()=>{ buildMemberChips(); modalGroup.classList.remove('hidden'); modalGroup.classList.add('flex'); };
+    document.getElementById('btnNewGroup').onclick = ()=>{
+      buildMemberChips();
+      modalGroup.classList.remove('hidden');
+      modalGroup.classList.add('flex');
+    };
     document.getElementById('btnOpenAnalytics').onclick = ()=> openAnalytics();
 
-    content.querySelectorAll('[data-gv]').forEach(b=> b.onclick = ()=> openGroupView(b.getAttribute('data-gv')));
-    content.querySelectorAll('[data-invite]').forEach(b=> b.onclick = ()=>{ const g = db.groups.find(x=>x.id===b.dataset.invite); const link = `${location.origin}${location.pathname}?join=${encodeURIComponent(g.name)}`; navigator.clipboard.writeText(link); showToast('Invite link copied'); });
+    content.querySelectorAll('[data-gv]').forEach(function(b){
+      b.onclick = ()=> openGroupView(b.getAttribute('data-gv'));
+    });
+    content.querySelectorAll('[data-invite]').forEach(function(b){
+      b.onclick = ()=>{
+        const g = db.groups.find(x=>x.id===b.dataset.invite);
+        const link = location.origin + location.pathname + '?join=' + encodeURIComponent(g.name);
+        navigator.clipboard.writeText(link);
+        showToast('Invite link copied');
+      };
+    });
   }
 
   function buildMemberChips(){
     grpMembers.innerHTML = '';
-    db.users.forEach(u=> grpMembers.appendChild(memberChip(u)));
+    db.users.forEach(function(u){ grpMembers.appendChild(memberChip(u)); });
   }
   function memberChip(name){
-    const d = el(`<label class="flex items-center gap-2 bg-gray-700 rounded-xl px-2 py-1">
-      <input type="checkbox" class="scale-110" checked>
-      <span>${name}</span>
-    </label>`);
+    const d = el(
+      '<label class="flex items-center gap-2 bg-gray-700 rounded-xl px-2 py-1">' +
+        '<input type="checkbox" class="scale-110" checked>' +
+        '<span>'+name+'</span>' +
+      '</label>'
+    );
     return d;
   }
   document.getElementById('btnAddMember').onclick = ()=>{
-    const name = prompt('Member name?'); if(!name) return; if(!db.users.includes(name)) db.users.push(name); grpMembers.appendChild(memberChip(name));
+    const name = prompt('Member name?');
+    if(!name) return;
+    if(!db.users.includes(name)) db.users.push(name);
+    grpMembers.appendChild(memberChip(name));
   };
   document.getElementById('btnSaveGroup').onclick = ()=>{
     const name = document.getElementById('grpName').value.trim();
-    const members = Array.from(grpMembers.querySelectorAll('label')).filter(l=>l.querySelector('input').checked).map(l=>l.querySelector('span').textContent);
+    const type = document.getElementById('grpType').value || 'Regular';
+    const members = Array.from(grpMembers.querySelectorAll('label'))
+      .filter(function(l){ return l.querySelector('input').checked; })
+      .map(function(l){ return l.querySelector('span').textContent; });
     if(!name || members.length<2) { alert('Enter name and pick at least 2 members'); return; }
-    db.groups.push({ id:uid(), name, members}); store.save(db); closeAllModals(); render(); showToast('Group created');
+    db.groups.push({ id:uid(), name, type, members});
+    store.save(db);
+    closeAllModals();
+    render();
+    showToast('Group created');
   };
 
-  const modalGroupView = document.getElementById('modalGroupView');
-  function openGroupView(gid){
-    const g = db.groups.find(x=>x.id===gid); if(!g) return;
-    document.getElementById('gvTitle').textContent = `${g.name}`;
-    document.getElementById('gvMembers').textContent = `Members: ${g.members.join(', ')}`;
-
-    const balances = calcGroupBalances(gid);
-    const gvBalances = document.getElementById('gvBalances');
-    gvBalances.innerHTML = '';
-    Object.entries(balances).forEach(([m,bal])=>{
-      const line = el(`<div class="flex justify-between bg-gray-700 rounded-xl px-3 py-2">
-        <div>${m}</div><div class="${bal>=0?'text-green-400':'text-red-400'}">${fmt(bal)}</div>
-      </div>`); gvBalances.appendChild(line);
-    });
-
-    document.getElementById('btnSimplify').onclick = ()=>{ const tx = simplifyDebts(balances); alert(tx.map(t=>`${t.from} → ${t.to}: ${fmt(t.amount)}`).join('\n') || 'Nothing to settle!'); }
-    document.getElementById('btnSettleAll').onclick = ()=>{ markGroupSettled(gid); closeAllModals(); render(); showToast('Group settled'); }
-
-    modalGroupView.classList.remove('hidden'); modalGroupView.classList.add('flex');
+  function groupExpenses(gid){
+    return db.expenses.filter(function(e){ return e.gId===gid; });
   }
 
   function calcGroupBalances(gid){
-    const g = db.groups.find(x=>x.id===gid); const bal = {}; g.members.forEach(m=>bal[m]=0);
-    db.expenses.filter(e=>e.gId===gid).forEach(e=>{
+    const g = db.groups.find(x=>x.id===gid);
+    const bal = {};
+    g.members.forEach(function(m){ bal[m]=0; });
+    groupExpenses(gid).forEach(function(e){
       bal[e.payer] += e.amount;
-      Object.entries(e.split).forEach(([m,share])=> bal[m] -= share);
+      Object.entries(e.split).forEach(function(pair){
+        const m = pair[0], share = pair[1];
+        bal[m] -= share;
+      });
     });
-    Object.keys(bal).forEach(k=> bal[k] = +bal[k].toFixed(2));
+    Object.keys(bal).forEach(function(k){ bal[k] = +bal[k].toFixed(2); });
     return bal;
   }
 
+  function calcGroupFairness(gid){
+    const g = db.groups.find(function(x){ return x.id===gid; });
+    if(!g) return {};
+    const members = g.members;
+    const stats = {};
+    members.forEach(function(m){
+      stats[m] = { paid:0, fair:0, delta:0 };
+    });
+    const exps = groupExpenses(gid);
+    exps.forEach(function(e){
+      const size = g.members.length || Object.keys(e.split||{}).length || 1;
+      const shareEach = e.amount / size;
+      members.forEach(function(m){ stats[m].fair += shareEach; });
+      if(stats[e.payer]) stats[e.payer].paid += e.amount;
+    });
+    members.forEach(function(m){
+      stats[m].paid = +stats[m].paid.toFixed(2);
+      stats[m].fair = +stats[m].fair.toFixed(2);
+      stats[m].delta = +(stats[m].paid - stats[m].fair).toFixed(2);
+    });
+    return stats;
+  }
+
+  function calcTrustScores(gid){
+    const g = db.groups.find(function(x){ return x.id===gid; });
+    if(!g) return {};
+    const now = Date.now();
+    const exps = groupExpenses(gid);
+    const result = {};
+    g.members.forEach(function(m){ result[m] = {days:0,count:0,avgDays:null,label:''}; });
+    exps.forEach(function(e){
+      const created = e.created || now;
+      const involved = Object.keys(e.split||{});
+      involved.forEach(function(m){
+        if(!(e.split && e.split[m] > 0)) return;
+        if(!result[m]) return;
+        let endTime = null;
+        if(e.status === 'paid' && e.settledAt) endTime = e.settledAt;
+        else if(e.status === 'unpaid') endTime = now;
+        if(!endTime) return;
+        const days = (endTime - created)/86400000;
+        result[m].days += days;
+        result[m].count += 1;
+      });
+    });
+    g.members.forEach(function(m){
+      const r = result[m];
+      if(r.count>0){
+        const avg = r.days / r.count;
+        r.avgDays = +avg.toFixed(1);
+        if(avg <= 1) r.label = '⚡ Fast payer';
+        else if(avg <= 5) r.label = '🙂 Decent';
+        else r.label = '😴 Slow';
+      } else {
+        r.avgDays = null;
+        r.label = 'No data yet';
+      }
+    });
+    return result;
+  }
+
+  function calcTripStats(gid){
+    const g = db.groups.find(function(x){ return x.id===gid; });
+    if(!g) return null;
+    const exps = groupExpenses(gid);
+    if(!exps.length) return null;
+    let total = 0;
+    let minDate = null, maxDate = null;
+    const byPayer = {};
+    exps.forEach(function(e){
+      total += e.amount;
+      const dStr = e.date || new Date(e.created).toISOString().slice(0,10);
+      const d = new Date(dStr);
+      if(!minDate || d < minDate) minDate = d;
+      if(!maxDate || d > maxDate) maxDate = d;
+      byPayer[e.payer] = (byPayer[e.payer]||0) + e.amount;
+    });
+    const perPerson = total / (g.members.length || 1);
+    let biggestName = null, biggestAmount = 0;
+    Object.keys(byPayer).forEach(function(p){
+      if(byPayer[p] > biggestAmount){ biggestAmount = byPayer[p]; biggestName = p; }
+    });
+    const days = minDate && maxDate ? Math.round((maxDate - minDate)/86400000)+1 : 1;
+    return {
+      total:+total.toFixed(2),
+      perPerson:+perPerson.toFixed(2),
+      days,
+      biggestName,
+      biggestAmount:+biggestAmount.toFixed(2)
+    };
+  }
+
   function simplifyDebts(bal){
-    const debtors = Object.entries(bal).filter(([,v])=>v<0).map(([m,v])=>({m, v: -v}));
-    const creditors = Object.entries(bal).filter(([,v])=>v>0).map(([m,v])=>({m, v}));
-    debtors.sort((a,b)=>b.v-a.v); creditors.sort((a,b)=>b.v-a.v);
+    const debtors = Object.entries(bal).filter(function(entry){ return entry[1]<0; }).map(function(entry){
+      return {m:entry[0], v:-entry[1]};
+    });
+    const creditors = Object.entries(bal).filter(function(entry){ return entry[1]>0; }).map(function(entry){
+      return {m:entry[0], v:entry[1]};
+    });
+    debtors.sort(function(a,b){ return b.v-a.v; });
+    creditors.sort(function(a,b){ return b.v-a.v; });
     const tx = []; let i=0,j=0;
     while(i<debtors.length && j<creditors.length){
       const pay = Math.min(debtors[i].v, creditors[j].v);
       tx.push({ from: debtors[i].m, to: creditors[j].m, amount: +pay.toFixed(2) });
       debtors[i].v -= pay; creditors[j].v -= pay;
-      if(debtors[i].v < 0.01) i++; if(creditors[j].v < 0.01) j++;
+      if(debtors[i].v < 0.01) i++;
+      if(creditors[j].v < 0.01) j++;
     }
     return tx;
   }
 
   function markGroupSettled(gid){
-    db.expenses.filter(e=>e.gId===gid && e.status==='unpaid').forEach(e=> e.status='paid'); store.save(db);
+    const now = Date.now();
+    db.expenses.filter(function(e){ return e.gId===gid && e.status==='unpaid'; })
+      .forEach(function(e){
+        e.status='paid';
+        e.settledAt = now;
+      });
+    store.save(db);
+  }
+
+  const modalGroupView = document.getElementById('modalGroupView');
+  function renderGroupTransfers(balances){
+    const txWrap = document.getElementById('gvTx');
+    txWrap.innerHTML = '';
+    const tx = simplifyDebts(balances);
+    if(!tx.length){
+      txWrap.innerHTML = '<div class="text-xs text-gray-400">All settled — nothing to transfer 🎉</div>';
+      return;
+    }
+    tx.forEach(function(t){
+      const lineText = t.from + ' → ' + t.to + ': ' + fmt(t.amount);
+      const row = el(
+        '<div class="flex items-center justify-between bg-gray-800 rounded-xl px-3 py-1">' +
+          '<div>'+lineText+'</div>' +
+          '<button class="text-[11px] underline" data-copy="'+lineText+'">Copy</button>' +
+        '</div>'
+      );
+      txWrap.appendChild(row);
+    });
+    txWrap.querySelectorAll('[data-copy]').forEach(function(btn){
+      btn.onclick = function(){
+        const txt = btn.getAttribute('data-copy');
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText('Settle up: ' + txt);
+          showToast('Copied suggestion');
+        } else {
+          alert('Settle up: ' + txt);
+        }
+      };
+    });
+  }
+
+  function openGroupView(gid){
+    const g = db.groups.find(function(x){ return x.id===gid; });
+    if(!g) return;
+    document.getElementById('gvTitle').textContent = g.name;
+    document.getElementById('gvMembers').textContent = 'Members: ' + g.members.join(', ');
+
+    const tripBox = document.getElementById('gvTrip');
+    tripBox.innerHTML = '';
+    if(g.type === 'Trip'){
+      const ts = calcTripStats(gid);
+      if(ts){
+        tripBox.innerHTML =
+          '<div class="mt-1">Trip total: <b>'+fmt(ts.total)+'</b> • Per person: <b>'+fmt(ts.perPerson)+'</b></div>' +
+          '<div>Length: '+ts.days+' day(s)' +
+          (ts.biggestName ? ' • Biggest spender: '+ts.biggestName+' ('+fmt(ts.biggestAmount)+')' : '') +
+          '</div>';
+      }
+    }
+
+    const balances = calcGroupBalances(gid);
+    const gvBalances = document.getElementById('gvBalances');
+    gvBalances.innerHTML = '';
+    Object.entries(balances).forEach(function(entry){
+      const m = entry[0], bal = entry[1];
+      const line = el(
+        '<div class="flex justify-between bg-gray-700 rounded-xl px-3 py-2">' +
+          '<div>'+m+'</div>' +
+          '<div class="'+(bal>=0?'text-green-400':'text-red-400')+'">'+fmt(bal)+'</div>' +
+        '</div>'
+      );
+      gvBalances.appendChild(line);
+    });
+
+    const fairness = calcGroupFairness(gid);
+    const trust = calcTrustScores(gid);
+    const gvMeta = document.getElementById('gvMeta');
+    gvMeta.innerHTML = '';
+    Object.keys(fairness).forEach(function(m){
+      const f = fairness[m];
+      const t = trust[m] || {};
+      const sign = f.delta>0?'+':'';
+      const deltaStr = sign + f.delta.toFixed(2);
+      const label = t.label || '';
+      const daysStr = (t.avgDays!=null) ? (' • '+t.avgDays+'d avg') : '';
+      const html =
+        '<div class="flex justify-between bg-gray-800 rounded-xl px-3 py-1">' +
+          '<div>'+m+'</div>' +
+          '<div class="text-[11px] text-gray-300 text-right">' +
+            '<div>'+deltaStr+' vs fair</div>' +
+            '<div>'+label+daysStr+'</div>' +
+          '</div>' +
+        '</div>';
+      gvMeta.appendChild(el(html));
+    });
+
+    renderGroupTransfers(balances);
+
+    document.getElementById('btnSimplify').onclick = ()=>{
+      renderGroupTransfers(balances);
+      showToast('Updated settle suggestions');
+    };
+    document.getElementById('btnSettleAll').onclick = ()=>{
+      markGroupSettled(gid);
+      closeAllModals();
+      render();
+      showToast('Group settled');
+    };
+
+    modalGroupView.classList.remove('hidden');
+    modalGroupView.classList.add('flex');
   }
 
   const modalAnalytics = document.getElementById('modalAnalytics');
-  function openAnalytics(){ modalAnalytics.classList.remove('hidden'); modalAnalytics.classList.add('flex'); renderAnalytics(); }
+  function openAnalytics(){
+    modalAnalytics.classList.remove('hidden');
+    modalAnalytics.classList.add('flex');
+    renderAnalytics();
+  }
 
   function monthlyBuckets(){
     const map = new Map();
-    db.expenses.forEach(e=>{
+    db.expenses.forEach(function(e){
       const m = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
       map.set(m, (map.get(m)||0) + e.amount);
     });
-    return [...map.entries()].sort(([a],[b])=> a.localeCompare(b));
+    return Array.from(map.entries()).sort(function(a,b){ return a[0].localeCompare(b[0]); });
   }
 
   let chart;
   function renderAnalytics(){
     const ctx = document.getElementById('chartMonthly');
     const data = monthlyBuckets();
-    const labels = data.map(d=>d[0]);
-    const values = data.map(d=>+d[1].toFixed(2));
+    const labels = data.map(function(d){ return d[0]; });
+    const values = data.map(function(d){ return +d[1].toFixed(2); });
     if(chart) chart.destroy();
-    chart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'Total Expenses', data: values }] }, options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } } });
+    chart = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[{ label:'Total Expenses', data: values }]
+      },
+      options:{
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true } }
+      }
+    });
 
-    const total = values.reduce((a,b)=>a+b,0);
-    const maxIdx = values.indexOf(Math.max(...values));
+    const total = values.reduce(function(a,b){ return a+b; },0);
+    const maxIdx = values.length ? values.indexOf(Math.max.apply(null, values)) : -1;
     const insights = document.getElementById('insights');
-    insights.innerHTML = `<div class="mt-2">Total recorded: <b>${fmt(total)}</b>. Peak month: <b>${labels[maxIdx]||'—'}</b>.</div>`;
+    insights.innerHTML = '<div class="mt-2">Total recorded: <b>'+fmt(total)+
+      '</b>. Peak month: <b>'+(labels[maxIdx]||'—')+'</b>.</div>';
   }
 
   function renderOthers(){
     toolbar.innerHTML = '';
     content.innerHTML = '';
-    const list = db.expenses.filter(e=> e.status!=='paid' && e.payer!==currentUser() && (e.split[currentUser()]||0)>0);
-    if(!list.length){ content.appendChild(el('<div class="text-center text-gray-400 py-8">No expenses from others yet</div>')); return; }
-    list.sort((a,b)=>b.created-a.created).forEach(e=> content.appendChild(expenseCard(e, true)));
+    const list = db.expenses.filter(function(e){
+      return e.status!=='paid' && e.payer!==currentUser() && (e.split[currentUser()]||0)>0;
+    });
+    if(!list.length){
+      content.appendChild(el('<div class="text-center text-gray-400 py-8">No expenses from others yet</div>'));
+      return;
+    }
+    list.sort(function(a,b){ return b.created-a.created; })
+        .forEach(function(e){ content.appendChild(expenseCard(e, true)); });
   }
 
   function renderMine(){
-    toolbar.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="text-sm font-semibold">Expenses</div>
-        <div class="flex items-center gap-2">
-<input id="searchBox"
-  class="bg-gray-700 rounded-lg h-8 w-28 sm:w-36 px-2 text-xs ml-8
-         placeholder:text-[11px] focus:outline-none focus:ring-2 focus:ring-orange-500/30"
-  placeholder="Search"/>          <select id="filterCat" class="bg-gray-700 rounded-xl px-2 py-1 text-sm">
-            <option value="">All</option><option>Food</option><option>Rent</option><option>Utilities</option><option>Transport</option><option>Shopping</option><option>Travel</option>
-          </select>
-          <button id="btnReminders" class="px-3 py-1 rounded bg-gray-700 text-sm">🔔</button>
-          <button id="btnFilterOverdue" class="px-3 py-1 rounded bg-gray-700 text-sm">⏰</button>
-        </div>
-      </div>`;
+    toolbar.innerHTML =
+      '<div class="flex items-center justify-between">' +
+        '<div class="text-sm font-semibold">Expenses</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<input id="searchBox"' +
+            ' class="bg-gray-700 rounded-lg h-8 w-28 sm:w-36 px-2 text-xs ml-8' +
+                   ' placeholder:text-[11px] focus:outline-none focus:ring-2 focus:ring-orange-500/30"' +
+            ' placeholder="Search"/>' +
+          '<select id="filterCat" class="bg-gray-700 rounded-xl px-2 py-1 text-sm">' +
+            '<option value="">All</option><option>Food</option><option>Rent</option><option>Utilities</option><option>Transport</option><option>Shopping</option><option>Travel</option>' +
+          '</select>' +
+          '<button id="btnReminders" class="px-3 py-1 rounded bg-gray-700 text-sm">🔔</button>' +
+          '<button id="btnFilterOverdue" class="px-3 py-1 rounded bg-gray-700 text-sm">⏰</button>' +
+        '</div>' +
+      '</div>';
     const searchBox = toolbar.querySelector('#searchBox');
     const filterCat = toolbar.querySelector('#filterCat');
 
     content.innerHTML = '';
-    const all = db.expenses.filter(e=>e.payer===currentUser());
-    if(!all.length){ content.appendChild(el('<div class="text-center text-gray-400 py-8">Add your first expense</div>')); return; }
+    const all = db.expenses.filter(function(e){ return e.payer===currentUser(); });
+    if(!all.length){
+      content.appendChild(el('<div class="text-center text-gray-400 py-8">Add your first expense</div>'));
+      return;
+    }
 
     const apply = ()=>{
       content.innerHTML='';
       const q = (searchBox.value||'').toLowerCase();
       const fc = filterCat.value;
-      let items = all.filter(e=> (!q || e.name.toLowerCase().includes(q) || (e.note||'').toLowerCase().includes(q)) && (!fc || e.category===fc));
-      items.sort((a,b)=> (b.created - a.created)).forEach(e=> content.appendChild(expenseCard(e)));
+      let items = all.filter(function(e){
+        const note = (e.note||'').toLowerCase();
+        const nm = (e.name||'').toLowerCase();
+        return (!q || nm.includes(q) || note.includes(q)) && (!fc || e.category===fc);
+      });
+      items.sort(function(a,b){ return b.created - a.created; })
+           .forEach(function(e){ content.appendChild(expenseCard(e)); });
       refreshKPI();
     };
-    searchBox.oninput = apply; filterCat.onchange = apply; apply();
+    searchBox.oninput = apply;
+    filterCat.onchange = apply;
+    apply();
 
     document.getElementById('btnReminders').onclick = ()=> runSmartReminders();
     document.getElementById('btnFilterOverdue').onclick = ()=>{
-      content.querySelectorAll('[data-due]').forEach(n=> n.classList.toggle('hidden', n.dataset.due!=='overdue'));
-    }
+      content.querySelectorAll('[data-due]').forEach(function(n){
+        n.classList.toggle('hidden', n.dataset.due!=='overdue');
+      });
+    };
   }
 
   function expenseCard(e, showSettle){
-    const g = db.groups.find(x=>x.id===e.gId);
+    const g = db.groups.find(function(x){ return x.id===e.gId; });
     const dueState = e.due ? (Date.now()>e.due ? 'overdue' : 'due') : 'none';
-    const wrap = el(`<div class="bg-gray-700 rounded-2xl p-3 space-y-2" data-due="${dueState}"></div>`);
-    const head = el(`<div class="flex items-center justify-between">
-      <div>
-        <div class="text-xs text-gray-300">${(e.date||'').slice(0,10)} • ${g?.name||'—'} • ${e.category}</div>
-        <div class="font-medium">${e.name}</div>
-        ${e.note?`<div class="text-xs text-gray-400">${e.note}</div>`:''}
-      </div>
-      <div class="text-right">
-        <div class="font-semibold">${fmt(e.amount)}</div>
-        <div class="flex justify-end gap-1">
-          <span class="chip ${e.status==='paid'?'bg-green-700':'bg-yellow-700'}">${e.status==='paid'?'Paid':'Unpaid'}</span>
-          ${dueState==='overdue'?'<span class="chip bg-red-700">Overdue</span>': (dueState==='due'?'<span class="chip bg-gray-600">Due</span>':'')}
-        </div>
-      </div>
-    </div>`);
+    const wrap = el('<div class="bg-gray-700 rounded-2xl p-3 space-y-2" data-due="'+dueState+'"></div>');
+    const baseCur = baseCurrency();
+    const hasOrig = e.origCurrency && e.origCurrency !== baseCur && e.origAmount;
+
+    let headHtml =
+      '<div class="flex items-center justify-between">' +
+        '<div>' +
+          '<div class="text-xs text-gray-300">'+((e.date||'').slice(0,10))+' • '+(g?.name||'—')+' • '+e.category+'</div>' +
+          '<div class="font-medium">'+e.name+'</div>';
+    if(e.note){
+      headHtml += '<div class="text-xs text-gray-400">'+e.note+'</div>';
+    }
+    if(hasOrig){
+      headHtml += '<div class="text-[11px] text-gray-400">From '+e.origCurrency+' '+e.origAmount.toFixed(2) +
+                  (e.fxRate ? (' @ '+e.fxRate) : '') + '</div>';
+    }
+    headHtml +=
+        '</div>' +
+        '<div class="text-right">' +
+          '<div class="font-semibold">'+fmt(e.amount)+'</div>' +
+          '<div class="flex justify-end gap-1">' +
+            '<span class="chip '+(e.status==='paid'?'bg-green-700':'bg-yellow-700')+'">'+(e.status==='paid'?'Paid':'Unpaid')+'</span>' +
+            (dueState==='overdue'
+              ? '<span class="chip bg-red-700">Overdue</span>'
+              : (dueState==='due' ? '<span class="chip bg-gray-600">Due</span>' : '')
+            ) +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    const head = el(headHtml);
     wrap.appendChild(head);
 
-    const splitLines = Object.entries(e.split).map(([m,x])=>`<div class="flex justify-between text-sm"><span>${m}</span><span>${fmt(x)}</span></div>`).join('');
-    wrap.appendChild(el(`<div class="bg-gray-800 rounded-xl p-2">${splitLines}</div>`));
+    const splitLines = Object.entries(e.split).map(function(pair){
+      const m = pair[0], x = pair[1];
+      return '<div class="flex justify-between text-sm"><span>'+m+'</span><span>'+fmt(x)+'</span></div>';
+    }).join('');
+    wrap.appendChild(el('<div class="bg-gray-800 rounded-xl p-2">'+splitLines+'</div>'));
 
-    const actions = el(`<div class="flex items-center justify-between text-sm">
-      <div class="space-x-2">
-        <button data-remind="${e.id}" class="px-2 py-1 rounded bg-orange-500">Remind</button>
-        <button data-paid="${e.id}" class="px-2 py-1 rounded bg-gray-900">${e.status==='paid'?'Unmark':'Mark paid'}</button>
-      </div>
-      <div class="space-x-2">
-        <button data-edit="${e.id}" class="px-2 py-1 rounded bg-gray-900">Edit</button>
-        <button data-del="${e.id}" class="px-2 py-1 rounded bg-red-600">Delete</button>
-      </div>
-    </div>`);
+    const actions = el(
+      '<div class="flex items-center justify-between text-sm">' +
+        '<div class="space-x-2">' +
+          '<button data-remind="'+e.id+'" class="px-2 py-1 rounded bg-orange-500">Remind</button>' +
+          '<button data-paid="'+e.id+'" class="px-2 py-1 rounded bg-gray-900">'+(e.status==='paid'?'Unmark':'Mark paid')+'</button>' +
+        '</div>' +
+        '<div class="space-x-2">' +
+          '<button data-edit="'+e.id+'" class="px-2 py-1 rounded bg-gray-900">Edit</button>' +
+          '<button data-del="'+e.id+'" class="px-2 py-1 rounded bg-red-600">Delete</button>' +
+        '</div>' +
+      '</div>'
+    );
     wrap.appendChild(actions);
 
     if(showSettle){
       const owe = e.split[currentUser()] || 0;
-      wrap.appendChild(el(`
-        <div class="pt-1 text-xs text-gray-300">
-          You owe ${fmt(owe)}.
-          <button data-pay="${e.id}" class="underline">Pay now</button>
-        </div>`));
-      // (Removed the old "Settle now" line to avoid duplication)
+      wrap.appendChild(el(
+        '<div class="pt-1 text-xs text-gray-300">' +
+          'You owe '+fmt(owe)+'. ' +
+          '<button data-pay="'+e.id+'" class="underline">Pay now</button>' +
+        '</div>'
+      ));
     }
 
-    if(e.remindAt && Date.now()>e.remindAt && e.status==='unpaid') wrap.appendChild(el(`<div class="text-xs text-yellow-300">🔔 Reminder pending</div>`));
+    if(e.remindAt && Date.now()>e.remindAt && e.status==='unpaid'){
+      wrap.appendChild(el('<div class="text-xs text-yellow-300">🔔 Reminder pending</div>'));
+    }
 
-    actions.querySelector(`[data-remind]`).onclick = ()=>{ alert('Reminder sent! 📧'); e.remindAt = Date.now()+3*864e5; store.save(db); showToast('Reminder scheduled'); }
-    actions.querySelector(`[data-paid]`).onclick = ()=>{ e.status = e.status==='paid' ? 'unpaid' : 'paid'; store.save(db); render(); }
-    actions.querySelector(`[data-del]`).onclick = ()=>{ if(confirm('Delete expense?')) { db.expenses = db.expenses.filter(x=>x.id!==e.id); store.save(db); render(); } }
-    actions.querySelector(`[data-edit]`).onclick = ()=>{ db._editingId = e.id; openAddExpense(e.id); }
+    actions.querySelector('[data-remind]').onclick = ()=>{
+      alert('Reminder sent! 📧');
+      e.remindAt = Date.now()+3*864e5;
+      store.save(db);
+      showToast('Reminder scheduled');
+    };
+    actions.querySelector('[data-paid]').onclick = ()=>{
+      if(e.status === 'paid'){
+        e.status = 'unpaid';
+        e.settledAt = null;
+      } else {
+        e.status = 'paid';
+        e.settledAt = Date.now();
+      }
+      store.save(db);
+      render();
+    };
+    actions.querySelector('[data-del]').onclick = ()=>{
+      if(confirm('Delete expense?')) {
+        db.expenses = db.expenses.filter(function(x){ return x.id!==e.id; });
+        store.save(db);
+        render();
+      }
+    };
+    actions.querySelector('[data-edit]').onclick = ()=>{
+      db._editingId = e.id;
+      openAddExpense(e.id);
+    };
 
     return wrap;
   }
 
-  // Event delegation for any future dynamic "Pay now" buttons
+  // Event delegation for "Pay now" buttons
   content.addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-pay]');
     if (!btn) return;
@@ -802,76 +1519,250 @@ body::-webkit-scrollbar-thumb {
 
   function editExpense(id){ db._editingId = id; openAddExpense(id); }
 
+  // Notifications modal
+  const modalNotifications = document.getElementById('modalNotifications');
+
   function runSmartReminders(){
-    const dueSoon = db.expenses.filter(e=> e.status==='unpaid' && e.remindAt && Date.now()>e.remindAt);
-    if(!dueSoon.length) { showToast('No pending reminders'); return; }
-    alert('Sent reminders for:\n' + dueSoon.map(e=> `${e.name} (${fmt(e.amount)})`).join('\n'));
-    dueSoon.forEach(e=> e.remindAt = Date.now()+3*864e5); store.save(db);
+    const now = Date.now();
+    const dueSoon = db.expenses.filter(function(e){
+      return e.status==='unpaid' && e.remindAt && now>e.remindAt;
+    });
+    const overdue = db.expenses.filter(function(e){
+      return e.status==='unpaid' && e.due && now>e.due;
+    });
+    const iOwe = db.expenses.filter(function(e){
+      return e.status==='unpaid' && e.payer!==currentUser() && (e.split[currentUser()]||0)>0;
+    });
+
+    const listEl = document.getElementById('notifList');
+    listEl.innerHTML = '';
+
+    if(!dueSoon.length && !overdue.length && !iOwe.length){
+      listEl.innerHTML = '<div class="text-sm text-gray-400">No pending reminders. You are all caught up 🎉</div>';
+    } else {
+      if(overdue.length){
+        listEl.appendChild(el('<div class="text-xs text-red-400 font-semibold mt-1">Overdue</div>'));
+        overdue.forEach(function(e){
+          const share = e.split[currentUser()] || 0;
+          listEl.appendChild(el(
+            '<div class="bg-gray-700 rounded-xl px-3 py-2 text-xs">' +
+              '<div>'+e.name+' • '+(e.date||'')+'</div>' +
+              '<div>You owe '+fmt(share)+' in '+(db.groups.find(function(g){return g.id===e.gId;})?.name||'group')+'</div>' +
+            '</div>'
+          ));
+        });
+      }
+      if(dueSoon.length){
+        listEl.appendChild(el('<div class="text-xs text-yellow-300 font-semibold mt-2">Reminders</div>'));
+        dueSoon.forEach(function(e){
+          listEl.appendChild(el(
+            '<div class="bg-gray-700 rounded-xl px-3 py-2 text-xs">' +
+              '<div>'+e.name+' • '+(e.date||'')+'</div>' +
+              '<div>Reminder ready for this unpaid expense.</div>' +
+            '</div>'
+          ));
+        });
+      }
+      if(iOwe.length){
+        listEl.appendChild(el('<div class="text-xs text-gray-300 font-semibold mt-2">You still owe</div>'));
+        iOwe.forEach(function(e){
+          const share = e.split[currentUser()] || 0;
+          listEl.appendChild(el(
+            '<div class="bg-gray-700 rounded-xl px-3 py-2 text-xs">' +
+              '<div>'+e.name+' • '+(e.date||'')+'</div>' +
+              '<div>You owe '+fmt(share)+' to '+e.payer+'</div>' +
+            '</div>'
+          ));
+        });
+      }
+    }
+
+    modalNotifications.classList.remove('hidden');
+    modalNotifications.classList.add('flex');
+
+    // push reminders forward 3 days
+    dueSoon.forEach(function(e){ e.remindAt = now+3*864e5; });
+    store.save(db);
   }
 
   document.getElementById('btnExport').onclick = ()=>{
     const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href=url; a.download='cashmeup.json'; a.click(); URL.revokeObjectURL(url);
-  }
+  };
   document.getElementById('fileImport').onchange = (e)=>{
-    const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = ()=>{ try{ db = JSON.parse(r.result); store.save(db); render(); showToast('Imported'); }catch{ alert('Invalid JSON'); } }; r.readAsText(f);
-  }
-  document.getElementById('btnReset').onclick = ()=>{ if(confirm('Reset all data?')) { localStorage.removeItem(store.key); db = store.load(); seedDemo(); render(); } };
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=>{
+      try{
+        db = JSON.parse(r.result);
+        store.save(db);
+        render();
+        showToast('Imported');
+      }catch{
+        alert('Invalid JSON');
+      }
+    };
+    r.readAsText(f);
+  };
+  document.getElementById('btnReset').onclick = ()=>{
+    if(confirm('Reset all data?')) {
+      localStorage.removeItem(store.key);
+      db = store.load();
+      seedDemo();
+      render();
+    }
+  };
+
+  document.getElementById('btnDemo').onclick = ()=>{
+    if(confirm('Replace current data with demo dataset?')){
+      localStorage.removeItem(store.key);
+      db = store.load();
+      seedDemo();
+      render();
+      showToast('Demo data loaded');
+    }
+  };
 
   function currentUser(){ return db.profile?.name || 'Divyansh'; }
 
   function refreshKPI(){
-    const mine = db.expenses.filter(e=>e.payer===currentUser() && e.status==='unpaid');
-    const total = mine.reduce((s,e)=> s+e.amount, 0);
-    const owedToMe = mine.reduce((s,e)=>{ const myShare = e.split[currentUser()]||0; return s + (e.amount - myShare); }, 0);
-    const iOwe = db.expenses.filter(e=> e.status==='unpaid' && e.payer!==currentUser()).reduce((s,e)=> s + (e.split[currentUser()]||0), 0);
+    const mine = db.expenses.filter(function(e){ return e.payer===currentUser() && e.status==='unpaid'; });
+    const total = mine.reduce(function(s,e){ return s+e.amount; }, 0);
+    const owedToMe = mine.reduce(function(s,e){
+      const myShare = e.split[currentUser()]||0;
+      return s + (e.amount - myShare);
+    }, 0);
+    const iOwe = db.expenses.filter(function(e){
+      return e.status==='unpaid' && e.payer!==currentUser();
+    }).reduce(function(s,e){ return s + (e.split[currentUser()]||0); }, 0);
     document.getElementById('hdrTotal').textContent = fmt(total);
     document.getElementById('kpiUnpaid').textContent = mine.length;
     document.getElementById('kpiOwedToMe').textContent = fmt(owedToMe);
     document.getElementById('kpiIOwe').textContent = fmt(iOwe);
   }
 
+  function recentExpenses(days){
+    const now = Date.now();
+    const cutoff = now - days*86400000;
+    return db.expenses.filter(function(e){ return e.created && e.created >= cutoff; });
+  }
+
+  function fairnessForUser(user){
+    const rec = recentExpenses(30).filter(function(e){
+      return e.split && e.split[user]>0;
+    });
+    if(!rec.length) return null;
+    let myPaid = 0;
+    let myFair = 0;
+    rec.forEach(function(e){
+      if(e.payer === user) myPaid += e.amount;
+      const g = db.groups.find(function(x){ return x.id===e.gId; });
+      const size = g ? g.members.length : Object.keys(e.split||{}).length || 1;
+      myFair += e.amount / size;
+    });
+    myPaid = +myPaid.toFixed(2);
+    myFair = +myFair.toFixed(2);
+    const delta = +(myPaid - myFair).toFixed(2);
+    return { myPaid, myFair, delta };
+  }
+
   function renderProfile(){
     toolbar.innerHTML = '';
-    const totalAll = db.expenses.reduce((s,e)=>s+e.amount,0);
-    const myPaid = db.expenses.filter(e=>e.payer===currentUser()).reduce((s,e)=>s+e.amount,0);
-    const myOwe = db.expenses.filter(e=> e.status!=='paid' && e.payer!==currentUser()).reduce((s,e)=>s+(e.split[currentUser()]||0),0);
-    const months = monthlyBuckets();
-    content.innerHTML = `
-      <div class="bg-gray-700 rounded-2xl p-3 mb-2 flex items-center gap-3">
-        <div class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-xl font-bold">${(currentUser()[0]||'U').toUpperCase()}</div>
-        <div><div class="font-semibold text-lg">${currentUser()}</div><div class="text-xs text-gray-300">${db.profile?.currency||'USD'}</div></div>
-      </div>
-      <div class="grid grid-cols-3 gap-2 text-sm mb-2">
-        <div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">${fmt(totalAll)}</div><div>Total</div></div>
-        <div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">${fmt(myPaid)}</div><div>Paid</div></div>
-        <div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">${fmt(myOwe)}</div><div>To Pay</div></div>
-      </div>
-      <div class="bg-gray-700 rounded-2xl p-3">
-        <div class="font-semibold mb-1">Timeline</div>
-        <div id="timeline" class="space-y-2"></div>
-      </div>
-      <div class="mt-2">
-        <button id="btnProfileAnalytics" class="w-full bg-gray-700 rounded-xl px-3 py-2">📈 View Insights</button>
-      </div>
-    `;
+    const totalAll = db.expenses.reduce(function(s,e){ return s+e.amount; },0);
+    const myPaid = db.expenses.filter(function(e){ return e.payer===currentUser(); }).reduce(function(s,e){ return s+e.amount; },0);
+    const myOwe = db.expenses.filter(function(e){
+      return e.status!=='paid' && e.payer!==currentUser();
+    }).reduce(function(s,e){ return s+(e.split[currentUser()]||0); },0);
+
+    const fair = fairnessForUser(currentUser());
+    let fairnessHtml = '';
+    if(fair){
+      const sign = fair.delta>0?'+':'';
+      const status = fair.delta>0 ? 'You have overpaid a bit recently.' :
+                     fair.delta<0 ? 'You are slightly underpaying.' :
+                     'Perfectly balanced.';
+      fairnessHtml =
+        '<div class="bg-gray-700 rounded-2xl p-3 mt-2 text-xs text-gray-300">' +
+          '<div class="font-semibold mb-1">Fairness (last 30 days)</div>' +
+          '<div>You paid '+fmt(fair.myPaid)+' vs fair share about '+fmt(fair.myFair)+' ('+sign+fair.delta.toFixed(2)+').</div>' +
+          '<div>'+status+'</div>' +
+        '</div>';
+    }
+
+    content.innerHTML =
+      '<div class="bg-gray-700 rounded-2xl p-3 mb-2 flex items-center gap-3">' +
+        '<div class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-xl font-bold">'+(currentUser()[0]||'U').toUpperCase()+'</div>' +
+        '<div><div class="font-semibold text-lg">'+currentUser()+'</div><div class="text-xs text-gray-300">'+(db.profile?.currency||'USD')+'</div></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-3 gap-2 text-sm mb-2">' +
+        '<div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">'+fmt(totalAll)+'</div><div>Total</div></div>' +
+        '<div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">'+fmt(myPaid)+'</div><div>Paid</div></div>' +
+        '<div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">'+fmt(myOwe)+'</div><div>To Pay</div></div>' +
+      '</div>' +
+      (fairnessHtml || '') +
+      '<div class="bg-gray-700 rounded-2xl p-3 mt-2">' +
+        '<div class="font-semibold mb-1">Timeline</div>' +
+        '<div id="timeline" class="space-y-2"></div>' +
+      '</div>' +
+      '<div class="bg-gray-700 rounded-2xl p-3 mt-2">' +
+        '<div class="font-semibold mb-1">Monthly Budgets</div>' +
+        '<div id="budgetsList" class="space-y-1 text-xs text-gray-300"></div>' +
+      '</div>' +
+      '<div class="mt-2">' +
+        '<button id="btnProfileAnalytics" class="w-full bg-gray-700 rounded-xl px-3 py-2">📈 View Insights</button>' +
+      '</div>';
+
     const tl = document.getElementById('timeline');
     const grouped = {};
-    db.expenses.slice().sort((a,b)=>b.created-a.created).forEach(e=>{
+    db.expenses.slice().sort(function(a,b){ return b.created-a.created; }).forEach(function(e){
       const key = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
-      (grouped[key] ||= []).push(e);
+      if(!grouped[key]) grouped[key] = [];
+      grouped[key].push(e);
     });
-    Object.entries(grouped).forEach(([m,arr])=>{
-      const section = el(`<div><div class="text-xs text-gray-300">${m}</div></div>`);
-      arr.forEach(e=>{
-        section.appendChild(el(`<div class="flex justify-between bg-gray-800 rounded-xl px-3 py-2 mt-1">
-          <div class="text-sm">${e.name} <span class="text-gray-400">• ${e.category}</span></div>
-          <div class="text-sm">${fmt(e.amount)}</div>
-        </div>`));
+    Object.entries(grouped).forEach(function(entry){
+      const m = entry[0], arr = entry[1];
+      const section = el('<div><div class="text-xs text-gray-300">'+m+'</div></div>');
+      arr.forEach(function(e){
+        section.appendChild(el(
+          '<div class="flex justify-between bg-gray-800 rounded-xl px-3 py-2 mt-1">' +
+            '<div class="text-sm">'+e.name+' <span class="text-gray-400">• '+e.category+'</span></div>' +
+            '<div class="text-sm">'+fmt(e.amount)+'</div>' +
+          '</div>'
+        ));
       });
       tl.appendChild(section);
     });
+
+    const bl = document.getElementById('budgetsList');
+    const budgets = db.profile?.budgets || {};
+    Object.keys(budgets).forEach(function(cat){
+      const limit = budgets[cat];
+      // current month
+      const today = new Date().toISOString().slice(0,10);
+      const used = monthlySpendForCategory(cat, today);
+      const row = el(
+        '<div class="flex items-center justify-between bg-gray-800 rounded-xl px-3 py-1">' +
+          '<div>'+cat+'</div>' +
+          '<div class="flex items-center gap-2">' +
+            '<span>'+fmt(used)+' / '+fmt(limit)+'</span>' +
+            '<input data-budget="'+cat+'" type="number" class="w-20 bg-gray-700 rounded px-1 py-0.5 text-[11px]" value="'+limit+'"/>' +
+          '</div>' +
+        '</div>'
+      );
+      bl.appendChild(row);
+    });
+    bl.querySelectorAll('[data-budget]').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        const cat = inp.getAttribute('data-budget');
+        const v = +inp.value || 0;
+        if(!db.profile.budgets) db.profile.budgets = {};
+        db.profile.budgets[cat] = v;
+        store.save(db);
+        showToast('Budget updated');
+      });
+    });
+
     document.getElementById('btnProfileAnalytics').onclick = openAnalytics;
   }
 
@@ -883,27 +1774,102 @@ body::-webkit-scrollbar-thumb {
     refreshKPI();
   }
 
-  function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; }
+  function el(html){
+    const d=document.createElement('div');
+    d.innerHTML=html.trim();
+    return d.firstElementChild;
+  }
 
-  // Seed demo data if empty; ensure an 'Others' expense for current user exists
+  // Seed demo data: richer dataset
   function seedDemo(){
     if(!db.groups.length){
-      db.groups.push({ id: uid(), name: 'Roommates', members:['Divyansh','Mustafa','Minjun'] });
+      db.groups.push({ id: uid(), name: 'Roommates', type:'Regular', members:['Divyansh','Mustafa','Minjun'] });
+      db.groups.push({ id: uid(), name: 'Europe Trip', type:'Trip', members:['Divyansh','Mustafa','Rafsaan'] });
+      db.groups.push({ id: uid(), name: 'Birthday Party', type:'Event', members:['Divyansh','Mustafa','Minjun','Rafsaan'] });
+    } else {
+      db.groups.forEach(function(g){
+        if(!g.type) g.type='Regular';
+      });
     }
-    const g = db.groups[0].id;
+    const gRoom = db.groups[0].id;
+    const gTrip = db.groups[1]?.id || gRoom;
+    const gEvent = db.groups[2]?.id || gRoom;
+
     if(db.expenses.length===0){
+      const today = new Date();
+      const todayStr = today.toISOString().slice(0,10);
+      const day = 86400000;
+
       db.expenses.push(
-        // Payer is Mustafa, so Divyansh sees this under Others' Expenses
-        { id:uid(), name:'Dinner', amount: 45.00, date:new Date().toISOString().slice(0,10), gId:g, payer:'Mustafa', category:'Food', note:'Pizza & wings', split: {'Divyansh':15,'Mustafa':15,'Minjun':15}, status:'unpaid', created:Date.now()-2*864e5 },
-        { id:uid(), name:'Gas', amount: 20.99, date:new Date().toISOString().slice(0,10), gId:g, payer:'Divyansh', category:'Transport', note:'', split: {'Divyansh':7,'Mustafa':7,'Minjun':6.99}, status:'unpaid', created:Date.now()-864e5, due:Date.now()+2*864e5, remindAt:Date.now()+1*864e5 },
-        { id:uid(), name:'Hydro', amount: 78.50, date:new Date().toISOString().slice(0,10), gId:g, payer:'Divyansh', category:'Utilities', note:'', split: {'Divyansh':26.17,'Mustafa':26.17,'Minjun':26.16}, status:'unpaid', created:Date.now()-3*864e5, due:Date.now()-1*864e5 }
+        {
+          id:uid(), name:'Dinner', amount:45.00, date:todayStr, gId:gRoom,
+          payer:'Mustafa', category:'Food', note:'Pizza & wings',
+          split:{'Divyansh':15,'Mustafa':15,'Minjun':15},
+          status:'unpaid', created:Date.now()-2*day,
+          due:null, remindAt:null, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        },
+        {
+          id:uid(), name:'Gas', amount:20.99, date:todayStr, gId:gRoom,
+          payer:'Divyansh', category:'Transport', note:'',
+          split:{'Divyansh':7,'Mustafa':7,'Minjun':6.99},
+          status:'unpaid', created:Date.now()-1*day,
+          due:Date.now()+2*day, remindAt:Date.now()+1*day, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        },
+        {
+          id:uid(), name:'Hydro', amount:78.50, date:todayStr, gId:gRoom,
+          payer:'Divyansh', category:'Utilities', note:'',
+          split:{'Divyansh':26.17,'Mustafa':26.17,'Minjun':26.16},
+          status:'unpaid', created:Date.now()-3*day,
+          due:Date.now()-1*day, remindAt:null, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        },
+        // Trip group sample
+        {
+          id:uid(), name:'Flight tickets', amount:900, date:todayStr, gId:gTrip,
+          payer:'Divyansh', category:'Travel', note:'YYZ → LIS',
+          split:{'Divyansh':300,'Mustafa':300,'Rafsaan':300},
+          status:'paid', created:Date.now()-15*day,
+          due:null, remindAt:null, origAmount:null, origCurrency:null, fxRate:null, settledAt:Date.now()-10*day
+        },
+        {
+          id:uid(), name:'Hostel', amount:360, date:todayStr, gId:gTrip,
+          payer:'Mustafa', category:'Travel', note:'3 nights',
+          split:{'Divyansh':120,'Mustafa':120,'Rafsaan':120},
+          status:'unpaid', created:Date.now()-12*day,
+          due:Date.now()-2*day, remindAt:Date.now()-1*day, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        },
+        // Event group sample with FX
+        {
+          id:uid(), name:'Birthday Cake', amount:60, date:todayStr, gId:gEvent,
+          payer:'Minjun', category:'Food', note:'Custom chocolate cake',
+          split:{'Divyansh':15,'Mustafa':15,'Minjun':15,'Rafsaan':15},
+          status:'paid', created:Date.now()-7*day,
+          due:null, remindAt:null,
+          origAmount:null, origCurrency:null, fxRate:null, settledAt:Date.now()-6*day
+        },
+        {
+          id:uid(), name:'Bar tab', amount:150, date:todayStr, gId:gEvent,
+          payer:'Divyansh', category:'Food', note:'Drinks & snacks',
+          split:{'Divyansh':37.5,'Mustafa':37.5,'Minjun':37.5,'Rafsaan':37.5},
+          status:'unpaid', created:Date.now()-2*day,
+          due:Date.now()+3*day, remindAt:Date.now()+1*day,
+          origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        }
       );
     } else {
-      // If user data existed but no "others" item, inject one
+      // Ensure there's at least one "others" item for current user
       const me = currentUser();
-      const hasOthers = db.expenses.some(e => e.status!=='paid' && e.payer!==me && (e.split[me]||0)>0);
+      const hasOthers = db.expenses.some(function(e){
+        return e.status!=='paid' && e.payer!==me && (e.split[me]||0)>0;
+      });
       if(!hasOthers){
-        db.expenses.push({ id:uid(), name:'Coffee Run', amount: 12.00, date:new Date().toISOString().slice(0,10), gId:g, payer:'Mustafa', category:'Food', note:'Latte x2', split: {'Divyansh':6,'Mustafa':6}, status:'unpaid', created:Date.now()-5*3600*1000 });
+        db.expenses.push({
+          id:uid(), name:'Coffee Run', amount:12.00,
+          date:new Date().toISOString().slice(0,10),
+          gId:gRoom, payer:'Mustafa', category:'Food', note:'Latte x2',
+          split:{'Divyansh':6,'Mustafa':6}, status:'unpaid',
+          created:Date.now()-5*3600*1000, due:null, remindAt:null,
+          origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        });
       }
     }
     store.save(db);
@@ -913,8 +1879,15 @@ body::-webkit-scrollbar-thumb {
   seedDemo();
   render();
 
+  // Light onboarding hint
+  if(!db.settings.seenIntro){
+    showToast('Tip: tap ＋ to add an expense, or check Groups to see balances.');
+    db.settings.seenIntro = true;
+    store.save(db);
+  }
+
   const params = new URLSearchParams(location.search);
-  if(params.get('join')) showToast(`Joined ${params.get('join')} ✅`);
+  if(params.get('join')) showToast('Joined '+params.get('join')+' ✅');
   </script>
 </body>
 </html>
