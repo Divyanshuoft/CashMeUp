@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CASHMEUP — Split & Settle</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://js.stripe.com/v3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --card: #111827; --muted:#6b7280; --accent:#f97316; }
+    html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    .phone-outer { padding: 14px; }
+    .scroll-smooth { scroll-behavior: smooth; }
+    .glass { backdrop-filter: blur(6px); background: rgba(17,24,39,0.7);}
+    .mask-notch { width: 160px; height: 28px; }
+    .tap { transition: transform .08s ease; }
+    .tap:active { transform: scale(.98); }
+    .chip { padding: .25rem .5rem; border-radius: 9999px; font-size:.75rem }
+    * {
+  scrollbar-width: thin;
+  scrollbar-color: #1f2937 #374151; /* thumb, track */
+}
+
+/* WebKit (Chrome/Edge/Safari) — main content scroll */
+#content::-webkit-scrollbar {
+  width: 10px;
+}
+#content::-webkit-scrollbar-track {
+  background: #374151;          /* bg-gray-700 */
+  border-radius: 9999px;
+}
+#content::-webkit-scrollbar-thumb {
+  background: #46403b;          /* orange accent */
+  border-radius: 9999px;
+  border: 2px solid #1f2937;    /* ring to blend with bg-gray-800 */
+}
+#content::-webkit-scrollbar-thumb:hover {
+  background: #555054;          /* lighter on hover */
+}
+
+/* Optional: global body scrollbar (if page itself scrolls) */
+body::-webkit-scrollbar { width: 10px; }
+body::-webkit-scrollbar-track { background: #374151; }
+body::-webkit-scrollbar-thumb {
+  background: #4d4642;
+  border-radius: 9999px;
+  border: 2px solid #1f2937;
+}
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex justify-center items-center p-4">
+
+  <div class="relative">
+    <div class="absolute inset-0 bg-black rounded-[3rem] shadow-2xl phone-outer">
+      <div class="w-full h-full bg-gray-900 rounded-[2.5rem]"></div>
+    </div>
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 mask-notch bg-black rounded-b-3xl z-10"></div>
+
+    <div class="relative bg-gray-800 w-[380px] h-[800px] rounded-[3rem] overflow-hidden shadow-xl">
+      <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between">
+        <button id="btnBack" class="text-2xl opacity-60">⟵</button>
+        <div class="text-xs text-gray-400"><br><br>CASHMEUP</div>
+        <button id="btnSettings" class="text-2xl opacity-80">⚙️</button>
+      </div>
+
+      <div class="pt-12 px-6">
+        <div class="text-sm text-gray-400">This month bills</div>
+        <div id="hdrTotal" class="text-4xl font-extrabold mt-1">$0.00</div>
+        <div class="grid grid-cols-3 gap-2 bg-gray-700 rounded-2xl p-3 mt-4 text-xs">
+          <div class="flex flex-col items-center">
+            <span id="kpiUnpaid" class="font-bold">0</span>
+            <span class="text-gray-300">Unpaid</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span id="kpiOwedToMe" class="font-bold">$0.00</span>
+            <span class="text-gray-300">Others owe me</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span id="kpiIOwe" class="font-bold">$0.00</span>
+            <span class="text-gray-300">I owe</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 mt-4">
+        <div class="flex bg-gray-700 rounded-xl overflow-hidden text-sm">
+          <button data-tab="mine" class="tab-btn flex-1 py-2 text-gray-300">My Expenses</button>
+          <button data-tab="others" class="tab-btn flex-1 py-2 bg-gray-900 font-medium">Others' Expenses</button>
+          <button data-tab="groups" class="tab-btn flex-1 py-2 text-gray-300">Groups</button>
+          <button data-tab="profile" class="tab-btn flex-1 py-2 text-gray-300">Profile</button>
+        </div>
+      </div>
+
+      <div id="toolbar" class="px-6 mt-3"></div>
+      <div id="content" class="px-6 mt-2 space-y-3 overflow-y-auto pb-28" style="height: 475px"></div>
+
+      <div class="absolute bottom-0 inset-x-0 p-4">
+        <div class="glass rounded-2xl p-3 flex justify-around items-center text-2xl">
+          <button id="btnHome" class="tap" title="Home">🏠</button>
+<button id="btnAdd" class="tap bg-orange-500 text-white px-5 py-2 rounded-full mt-2 shadow-xl">＋</button>
+          <button id="btnGroups" class="tap" title="Groups">👥</button>
+        </div>
+      </div>
+
+      <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-28 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm shadow-xl">Saved ✅</div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Expense Modal -->
+  <div id="modalAdd" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 id="addTitle" class="text-lg font-semibold">Add Expense</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="exName" class="col-span-2 bg-gray-700 rounded-xl px-3 py-2" placeholder="What for?"/>
+        <input id="exAmount" type="number" step="0.01" class="bg-gray-700 rounded-xl px-3 py-2" placeholder="Amount"/>
+        <input id="exDate" type="date" class="bg-gray-700 rounded-xl px-3 py-2"/>
+        <select id="exGroup" class="bg-gray-700 rounded-xl px-3 py-2"></select>
+        <select id="exPayer" class="bg-gray-700 rounded-xl px-3 py-2"></select>
+        <select id="exCategory" class="bg-gray-700 rounded-xl px-3 py-2">
+          <option>Food</option><option>Rent</option><option>Utilities</option>
+          <option>Transport</option><option>Shopping</option><option>Travel</option>
+        </select>
+        <label class="flex items-center gap-2 text-sm col-span-2"><input id="exEqual" type="checkbox" checked> Split equally</label>
+        <div id="customSplitWrap" class="col-span-2 hidden">
+          <div class="text-xs text-gray-300 mb-1">Custom split per member</div>
+          <div id="customSplit" class="space-y-2"></div>
+        </div>
+        <div class="col-span-2 grid grid-cols-2 gap-2">
+          <div class="bg-gray-700 rounded-xl p-2">
+            <div class="text-xs text-gray-300 mb-1">Paste receipt text</div>
+            <textarea id="exReceipt" rows="3" class="w-full bg-gray-800 rounded-lg p-2 text-sm" placeholder="Paste receipt text to auto-detect amount"></textarea>
+            <button id="btnParseReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600">Parse</button>
+          </div>
+          <div class="bg-gray-700 rounded-xl p-2">
+            <div class="text-xs text-gray-300 mb-1">Scan receipt image</div>
+            <input id="exReceiptImg" type="file" accept="image/*" class="w-full text-xs bg-gray-800 rounded-lg p-2"/>
+            <button id="btnScanReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600">Scan</button>
+          </div>
+        </div>
+        <div class="col-span-2 grid grid-cols-2 gap-2 mt-1">
+          <label class="text-xs text-gray-300">Due in days
+            <input id="exDueDays" type="number" min="0" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="optional">
+          </label>
+          <label class="text-xs text-gray-300">Note
+            <input id="exNote" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="optional">
+          </label>
+        </div>
+      </div>
+      <div class="flex justify-between items-center pt-1">
+        <label class="flex items-center gap-2 text-sm"><input id="exReminder" type="checkbox"> Smart reminder</label>
+        <div class="space-x-2">
+          <button class="modal-close px-3 py-1 rounded bg-gray-700">Cancel</button>
+          <button id="btnSaveEx" class="px-3 py-1 rounded bg-orange-500">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Group Modal -->
+  <div id="modalGroup" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">New Group</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <input id="grpName" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="Group name"/>
+      <div>
+        <div class="text-xs text-gray-300 mb-1">Members</div>
+        <div id="grpMembers" class="grid grid-cols-2 gap-2"></div>
+        <button id="btnAddMember" class="mt-2 text-xs px-2 py-1 rounded bg-gray-700">+ Add member</button>
+      </div>
+      <div class="flex justify-between items-center">
+        <button class="modal-close px-3 py-1 rounded bg-gray-700">Cancel</button>
+        <button id="btnSaveGroup" class="px-3 py-1 rounded bg-orange-500">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="modalSettings" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Settings & Privacy</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <div class="space-y-3">
+        <label class="flex items-center justify-between">Dark Mode
+          <input id="setDark" type="checkbox" class="scale-125" checked>
+        </label>
+        <div class="border-t border-gray-700 pt-3">
+          <div class="font-medium mb-2">Privacy Lock</div>
+          <div class="grid grid-cols-2 gap-2">
+            <input id="setPIN" maxlength="6" class="bg-gray-700 rounded-xl px-3 py-2" placeholder="Set 4–6 digit PIN">
+            <button id="btnSavePIN" class="bg-gray-700 rounded-xl">Save PIN</button>
+          </div>
+          <button id="btnLockNow" class="mt-2 text-xs px-2 py-1 rounded bg-gray-700">Lock App Now</button>
+        </div>
+        <div class="border-t border-gray-700 pt-3">
+          <div class="font-medium mb-2">Data</div>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btnExport" class="bg-gray-700 rounded-xl px-3 py-2">Export JSON</button>
+            <label class="bg-gray-700 rounded-xl px-3 py-2 text-center cursor-pointer">Import JSON<input id="fileImport" type="file" class="hidden" accept="application/json"></label>
+          </div>
+          <button id="btnReset" class="mt-2 text-xs px-2 py-1 rounded bg-red-600">Factory Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lock Screen -->
+  <div id="lockScreen" class="hidden fixed inset-0 z-[60] bg-gray-900 flex flex-col items-center justify-center p-6">
+    <div class="text-5xl mb-4">🔒</div>
+    <div class="text-xl font-semibold mb-2">App Locked</div>
+    <input id="pinInput" class="bg-gray-800 rounded-xl px-4 py-3 tracking-widest text-center text-2xl w-56" placeholder="••••" maxlength="6"/>
+    <button id="btnUnlock" class="mt-3 bg-orange-500 px-4 py-2 rounded-xl">Unlock</button>
+    <div id="pinMsg" class="text-sm text-red-400 mt-2"></div>
+  </div>
+
+  <!-- Group View -->
+  <div id="modalGroupView" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 id="gvTitle" class="text-lg font-semibold">Group</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <div id="gvMembers" class="text-sm text-gray-300"></div>
+      <div class="border-t border-gray-700"></div>
+      <div id="gvBalances" class="space-y-2 text-sm"></div>
+      <div class="border-t border-gray-700"></div>
+      <div class="space-y-2">
+        <button id="btnSimplify" class="w-full bg-gray-700 rounded-xl px-3 py-2">🔁 Simplify Debts</button>
+        <button id="btnSettleAll" class="w-full bg-orange-500 rounded-xl px-3 py-2">✅ Settle Up</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics -->
+  <div id="modalAnalytics" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Spending Insights</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <canvas id="chartMonthly" height="160"></canvas>
+      <div id="insights" class="text-sm text-gray-300"></div>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div id="modalPayment" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Make a Payment</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+
+      <div class="bg-gray-700 rounded-xl p-3 text-sm">
+        <div class="flex justify-between"><span>Paying for</span><span id="payName" class="font-medium"></span></div>
+        <div class="flex justify-between"><span>Group</span><span id="payGroup" class="text-gray-300"></span></div>
+        <div class="flex justify-between"><span>Your share</span><span id="payAmount" class="font-semibold"></span></div>
+        <div id="payNoteWrap" class="mt-1 text-xs text-gray-300 hidden"></div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="text-sm font-medium">Payment method</div>
+        <div class="grid grid-cols-3 gap-2 text-sm">
+          <button data-method="card" class="pm-btn bg-gray-700 rounded-xl px-3 py-2 font-medium">💳 Card</button>
+          <button data-method="apple" class="pm-btn bg-gray-700 rounded-xl px-3 py-2"> Pay</button>
+          <button data-method="gpay" class="pm-btn bg-gray-700 rounded-xl px-3 py-2">GPay</button>
+        </div>
+      </div>
+
+      <div id="cardFields" class="space-y-2">
+        <input id="pmName" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="Full name on card" />
+        <input id="pmEmail" type="email" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="Email for receipt" />
+        <div class="bg-gray-700 rounded-xl px-3 py-2">
+          <div class="text-xs text-gray-300 mb-1">Card details</div>
+          <input id="pmCard" class="w-full bg-gray-800 rounded-lg px-3 py-2 tracking-widest" placeholder="4242 4242 4242 4242" />
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <input id="pmExp" class="bg-gray-800 rounded-lg px-3 py-2" placeholder="MM/YY" />
+            <input id="pmCvc" class="bg-gray-800 rounded-lg px-3 py-2" placeholder="CVC" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <div id="pmMsg" class="text-sm text-red-400"></div>
+        <div class="space-x-2">
+          <button class="modal-close px-3 py-2 rounded bg-gray-700">Cancel</button>
+          <button id="btnPayNow" class="px-4 py-2 rounded bg-orange-500 font-medium">Pay now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ===== Payment state + handlers =====
+  let payingExpenseId = null;
+  const modalPayment = document.getElementById('modalPayment');
+
+  function openPayment(expenseId){
+    payingExpenseId = expenseId;
+    const e = db.expenses.find(x=>x.id===expenseId);
+    if(!e){ return; }
+    const g = db.groups.find(x=>x.id===e.gId);
+    const myShare = e.split[currentUser()] || 0;
+
+    document.getElementById('payName').textContent = e.name || 'Expense';
+    document.getElementById('payGroup').textContent = g?.name || '—';
+    document.getElementById('payAmount').textContent = fmt(myShare);
+    const noteWrap = document.getElementById('payNoteWrap');
+    if(e.note){ noteWrap.classList.remove('hidden'); noteWrap.textContent = `Note: ${e.note}`; }
+    else { noteWrap.classList.add('hidden'); }
+
+    selectPm('card');
+    document.getElementById('pmMsg').textContent = '';
+    document.getElementById('pmName').value = currentUser();
+    document.getElementById('pmEmail').value = '';
+    document.getElementById('pmCard').value = '4242 4242 4242 4242';
+    document.getElementById('pmExp').value = '12/30';
+    document.getElementById('pmCvc').value = '123';
+
+    modalPayment.classList.remove('hidden');
+    modalPayment.classList.add('flex');
+  }
+
+  const pmButtons = modalPayment.querySelectorAll('.pm-btn');
+  pmButtons.forEach(b => b.addEventListener('click', () => selectPm(b.dataset.method)));
+  function selectPm(method){
+    pmButtons.forEach(b => b.classList.toggle('bg-gray-900', b.dataset.method === method));
+    document.getElementById('cardFields').classList.toggle('hidden', method !== 'card');
+    modalPayment.dataset.method = method;
+  }
+
+  function validatePayment(){
+    const method = modalPayment.dataset.method || 'card';
+    const fail = (m)=>{ document.getElementById('pmMsg').textContent = m; return false; };
+    if(method === 'card'){
+      const name = document.getElementById('pmName').value.trim();
+      const email = document.getElementById('pmEmail').value.trim();
+      const card = document.getElementById('pmCard').value.replace(/\s+/g,'');
+      const exp  = document.getElementById('pmExp').value.trim();
+      const cvc  = document.getElementById('pmCvc').value.trim();
+      if(!name) return fail('Enter name');
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('Enter a valid email');
+      if(!/^\d{13,19}$/.test(card)) return fail('Card number looks off');
+      if(!/^\d{2}\/\d{2}$/.test(exp)) return fail('Expiry format MM/YY');
+      if(!/^\d{3,4}$/.test(cvc)) return fail('CVC looks off');
+    }
+    return true;
+  }
+
+  document.getElementById('btnPayNow').addEventListener('click', ()=>{
+    if(!validatePayment()) return;
+    const e = db.expenses.find(x=>x.id===payingExpenseId);
+    if(!e){ return; }
+    e.status = 'paid'; // MVP: mark whole expense paid
+    store.save(db);
+    closeAllModals();
+    render();
+    showToast('Payment successful ✅');
+  });
+
+  // ===== App state, storage, and UI =====
+  const OCR_ENDPOINT = "";
+  const OCR_KEY = "";
+
+  const store = {
+    key: 'cashmeup_v2',
+    load(){
+      const raw = localStorage.getItem(this.key);
+      if(!raw){
+        const seed = {
+          users: ['Divyansh','Mustafa','Minjun','Rafsaan'],
+          profile: { name: 'Divyansh', currency: 'USD', avatar: '' }, // current user
+          groups: [{ id: uid(), name: 'Roommates', members:['Divyansh','Mustafa','Minjun'] }],
+          expenses: [],
+          settings: { dark:true, pin:"" }
+        };
+        localStorage.setItem(this.key, JSON.stringify(seed));
+        return seed;
+      }
+      try { return JSON.parse(raw); } catch { return { users:[], groups:[], expenses:[], settings:{dark:true,pin:""}, profile:{name:'User',currency:'USD',avatar:''} } }
+    },
+    save(data){ localStorage.setItem(this.key, JSON.stringify(data)); }
+  }
+  let db = store.load();
+
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+  function fmt(n){ const v = (+n||0); return (db.profile?.currency||'USD')==='USD' ? `$${v.toFixed(2)}` : `${v.toFixed(2)} ${db.profile.currency}`; }
+
+  const content = document.getElementById('content');
+  const toolbar = document.getElementById('toolbar');
+  const toast = document.getElementById('toast');
+  function showToast(msg='Saved ✅'){ toast.textContent = msg; toast.classList.remove('hidden'); setTimeout(()=>toast.classList.add('hidden'), 1200); }
+
+  function closeAllModals(){ document.querySelectorAll('.fixed.inset-0.z-50').forEach(m=>m.classList.add('hidden')); }
+  document.querySelectorAll('.modal-close').forEach(b=> b.addEventListener('click', closeAllModals));
+
+  const tabs = document.querySelectorAll('.tab-btn');
+  let currentTab = 'others'; // start on Others so you immediately see "Pay now"
+  tabs.forEach(btn=>btn.addEventListener('click',()=>{
+    currentTab = btn.dataset.tab;
+    tabs.forEach(b=>b.classList.remove('bg-gray-900','font-medium','text-white'));
+    btn.classList.add('bg-gray-900','font-medium');
+    render();
+  }));
+
+  document.getElementById('btnHome').onclick = ()=>{ currentTab='mine'; render(); };
+  document.getElementById('btnGroups').onclick = ()=>{ currentTab='groups'; render(); };
+
+  const modalSettings = document.getElementById('modalSettings');
+  document.getElementById('btnSettings').onclick = ()=>{ refreshSettingsUI(); modalSettings.classList.remove('hidden'); modalSettings.classList.add('flex'); };
+  function refreshSettingsUI(){
+    document.getElementById('setDark').checked = !!db.settings.dark;
+    document.getElementById('setPIN').value = db.settings.pin || '';
+  }
+  document.getElementById('setDark').onchange = (e)=>{ db.settings.dark = e.target.checked; store.save(db); document.body.classList.toggle('bg-white', !db.settings.dark); };
+  document.getElementById('btnSavePIN').onclick = ()=>{ const v = document.getElementById('setPIN').value.trim(); if(v && v.length>=4) { db.settings.pin = v; store.save(db); showToast('PIN saved'); } };
+  document.getElementById('btnLockNow').onclick = ()=> lockApp();
+
+  const lockScreen = document.getElementById('lockScreen');
+  function lockApp(){ lockScreen.classList.remove('hidden'); document.getElementById('pinInput').value=''; document.getElementById('pinMsg').textContent=''; }
+  document.getElementById('btnUnlock').onclick = ()=>{ const v = document.getElementById('pinInput').value.trim(); if(v === (db.settings.pin||'')) { lockScreen.classList.add('hidden'); } else { document.getElementById('pinMsg').textContent='Incorrect PIN'; } }
+
+  const modalAdd = document.getElementById('modalAdd');
+  document.getElementById('btnAdd').onclick = ()=>{ openAddExpense(); };
+
+  function openAddExpense(id=null){
+    populateAddExpense(id);
+    document.getElementById('addTitle').textContent = id? 'Edit Expense' : 'Add Expense';
+    modalAdd.classList.remove('hidden'); modalAdd.classList.add('flex');
+  }
+
+  function populateAddExpense(id=null){
+    const selGroup = document.getElementById('exGroup');
+    selGroup.innerHTML = db.groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    const selPayer = document.getElementById('exPayer');
+    selPayer.innerHTML = db.users.map(u=>`<option>${u}</option>`).join('');
+    document.getElementById('exDate').valueAsDate = new Date();
+    document.getElementById('exName').value='';
+    document.getElementById('exAmount').value='';
+    document.getElementById('exCategory').value='Food';
+    document.getElementById('exNote').value='';
+    document.getElementById('exDueDays').value='';
+    document.getElementById('exEqual').checked = true; document.getElementById('customSplitWrap').classList.add('hidden');
+    buildCustomSplit();
+    if(id){
+      const e = db.expenses.find(x=>x.id===id);
+      if(e){
+        document.getElementById('exName').value=e.name;
+        document.getElementById('exAmount').value=e.amount;
+        document.getElementById('exDate').value=e.date;
+        document.getElementById('exGroup').value=e.gId; buildCustomSplit();
+        document.getElementById('exPayer').value=e.payer;
+        document.getElementById('exCategory').value=e.category;
+        document.getElementById('exNote').value=e.note||'';
+        document.getElementById('exEqual').checked=false; document.getElementById('customSplitWrap').classList.remove('hidden');
+        Object.entries(e.split).forEach(([m,v])=>{ const input = document.querySelector(`#customSplit [data-member="${m}"]`); if(input) input.value = v; });
+      }
+    }
+  }
+
+  document.getElementById('exEqual').onchange = (e)=>{ document.getElementById('customSplitWrap').classList.toggle('hidden', e.target.checked); }
+
+  function buildCustomSplit(){
+    const wrap = document.getElementById('customSplit');
+    const gId = document.getElementById('exGroup').value || (db.groups[0]?.id);
+    const grp = db.groups.find(g=>g.id===gId);
+    if(!grp) { wrap.innerHTML = '<div class="text-xs text-red-300">Create a group first.</div>'; return; }
+    wrap.innerHTML = grp.members.map(m=>`
+      <div class="flex items-center gap-2">
+        <div class="w-28 text-gray-200">${m}</div>
+        <input data-member="${m}" type="number" step="0.01" class="flex-1 bg-gray-700 rounded-xl px-3 py-1" placeholder="$ amount">
+      </div>`).join('');
+  }
+  document.getElementById('exGroup').addEventListener('change', buildCustomSplit);
+
+  document.getElementById('btnParseReceipt').onclick = ()=>{
+    const t = document.getElementById('exReceipt').value;
+    const nums = (t.match(/\d+[\.,]?\d*/g)||[]).map(x=>parseFloat(x.replace(',','.'))).filter(n=>!isNaN(n));
+    if(nums.length){ const total = Math.max(...nums); document.getElementById('exAmount').value = total.toFixed(2); showToast('Amount detected'); }
+    else { showToast('No numbers found'); }
+  }
+
+  document.getElementById('btnScanReceipt').onclick = async ()=>{
+    const f = document.getElementById('exReceiptImg').files?.[0];
+    if(!f){ showToast('No image'); return; }
+    if(!OCR_ENDPOINT){ showToast('Set OCR endpoint'); return; }
+    const fd = new FormData(); fd.append('file', f);
+    if(OCR_KEY) fd.append('key', OCR_KEY);
+    try{
+      const r = await fetch(OCR_ENDPOINT, { method:'POST', body: fd });
+      const data = await r.json();
+      if(data && (data.total || data.amount)){
+        document.getElementById('exAmount').value = (+data.total || +data.amount).toFixed(2);
+        if(data.date) document.getElementById('exDate').value = (new Date(data.date)).toISOString().slice(0,10);
+        if(data.category) document.getElementById('exCategory').value = data.category;
+        if(data.title) document.getElementById('exName').value = data.title;
+        showToast('Receipt scanned');
+      } else { showToast('Scan failed'); }
+    }catch{ showToast('Scan error'); }
+  }
+
+  document.getElementById('btnSaveEx').onclick = ()=>{
+    const name = document.getElementById('exName').value.trim();
+    const amount = +document.getElementById('exAmount').value;
+    const date = document.getElementById('exDate').value;
+    const gId = document.getElementById('exGroup').value;
+    const payer = document.getElementById('exPayer').value;
+    const cat = document.getElementById('exCategory').value;
+    const note = document.getElementById('exNote').value.trim();
+    const equal = document.getElementById('exEqual').checked;
+    const dueDays = +document.getElementById('exDueDays').value || 0;
+    const withReminder = document.getElementById('exReminder').checked;
+
+    if(!name || !amount || !gId){ alert('Please fill name, amount and group'); return; }
+
+    const group = db.groups.find(g=>g.id===gId);
+    const split = {};
+    if(equal){
+      const share = amount / group.members.length;
+      group.members.forEach(m=> split[m] = +share.toFixed(2));
+    } else {
+      let sum=0; document.querySelectorAll('#customSplit [data-member]').forEach(i=> sum += (+i.value||0));
+      if(Math.abs(sum-amount) > 0.01) { alert('Custom split must sum to total'); return; }
+      document.querySelectorAll('#customSplit [data-member]').forEach(i=> split[i.dataset.member] = +(i.value||0));
+    }
+
+    const editing = db._editingId || null;
+    if(editing){
+      const e = db.expenses.find(x=>x.id===editing);
+      if(e){
+        Object.assign(e, { name, amount, date, gId, payer, category:cat, note, split,
+          due: dueDays ? Date.now()+dueDays*864e5 : e.due,
+          remindAt: withReminder ? Date.now()+3*864e5 : e.remindAt });
+      }
+      db._editingId = null;
+      showToast('Expense updated');
+    } else {
+      const exp = { id:uid(), name, amount, date, gId, payer, category:cat, note, split, status:'unpaid', created:Date.now(),
+                    due: dueDays ? Date.now()+dueDays*864e5 : null, remindAt: withReminder ? Date.now()+3*864e5 : null };
+      db.expenses.push(exp);
+      showToast('Expense added');
+    }
+    store.save(db);
+    closeAllModals();
+    render();
+  }
+
+  const modalGroup = document.getElementById('modalGroup');
+  const grpMembers = document.getElementById('grpMembers');
+  document.getElementById('btnGroups').addEventListener('click',()=>{ currentTab='groups'; render(); });
+
+  function renderGroupsScreen(){
+    toolbar.innerHTML = '';
+    content.innerHTML = '';
+    const header = el(`<div class="flex items-center justify-between mb-2">
+      <div class="text-lg font-semibold">Your Groups</div>
+      <div class="space-x-2">
+        <button id="btnNewGroup" class="px-3 py-1 rounded bg-orange-500">+ New</button>
+        <button id="btnOpenAnalytics" class="px-3 py-1 rounded bg-gray-700">📊 Insights</button>
+      </div>
+    </div>`);
+    content.appendChild(header);
+
+    db.groups.forEach(g=>{
+      const total = db.expenses.filter(e=>e.gId===g.id).reduce((s,e)=>s+e.amount,0);
+      const card = el(`<div class="bg-gray-700 rounded-2xl p-3 flex items-center justify-between">
+        <div>
+          <div class="text-sm text-gray-300">Group</div>
+          <div class="text-lg font-semibold">${g.name}</div>
+          <div class="text-xs text-gray-300">${g.members.join(', ')}</div>
+          <div class="text-xs text-gray-400 mt-1">Total: ${fmt(total)}</div>
+        </div>
+        <div class="space-x-2">
+          <button data-gv="${g.id}" class="px-3 py-1 rounded bg-gray-900">View</button>
+          <button data-invite="${g.id}" class="px-3 py-1 rounded bg-gray-900">Invite</button>
+        </div>
+      </div>`);
+      content.appendChild(card);
+    });
+
+    document.getElementById('btnNewGroup').onclick = ()=>{ buildMemberChips(); modalGroup.classList.remove('hidden'); modalGroup.classList.add('flex'); };
+    document.getElementById('btnOpenAnalytics').onclick = ()=> openAnalytics();
+
+    content.querySelectorAll('[data-gv]').forEach(b=> b.onclick = ()=> openGroupView(b.getAttribute('data-gv')));
+    content.querySelectorAll('[data-invite]').forEach(b=> b.onclick = ()=>{ const g = db.groups.find(x=>x.id===b.dataset.invite); const link = `${location.origin}${location.pathname}?join=${encodeURIComponent(g.name)}`; navigator.clipboard.writeText(link); showToast('Invite link copied'); });
+  }
+
+  function buildMemberChips(){
+    grpMembers.innerHTML = '';
+    db.users.forEach(u=> grpMembers.appendChild(memberChip(u)));
+  }
+  function memberChip(name){
+    const d = el(`<label class="flex items-center gap-2 bg-gray-700 rounded-xl px-2 py-1">
+      <input type="checkbox" class="scale-110" checked>
+      <span>${name}</span>
+    </label>`);
+    return d;
+  }
+  document.getElementById('btnAddMember').onclick = ()=>{
+    const name = prompt('Member name?'); if(!name) return; if(!db.users.includes(name)) db.users.push(name); grpMembers.appendChild(memberChip(name));
+  };
+  document.getElementById('btnSaveGroup').onclick = ()=>{
+    const name = document.getElementById('grpName').value.trim();
+    const members = Array.from(grpMembers.querySelectorAll('label')).filter(l=>l.querySelector('input').checked).map(l=>l.querySelector('span').textContent);
+    if(!name || members.length<2) { alert('Enter name and pick at least 2 members'); return; }
+    db.groups.push({ id:uid(), name, members}); store.save(db); closeAllModals(); render(); showToast('Group created');
+  };
+
+  const modalGroupView = document.getElementById('modalGroupView');
+  function openGroupView(gid){
+    const g = db.groups.find(x=>x.id===gid); if(!g) return;
+    document.getElementById('gvTitle').textContent = `${g.name}`;
+    document.getElementById('gvMembers').textContent = `Members: ${g.members.join(', ')}`;
+
+    const balances = calcGroupBalances(gid);
+    const gvBalances = document.getElementById('gvBalances');
+    gvBalances.innerHTML = '';
+    Object.entries(balances).forEach(([m,bal])=>{
+      const line = el(`<div class="flex justify-between bg-gray-700 rounded-xl px-3 py-2">
+        <div>${m}</div><div class="${bal>=0?'text-green-400':'text-red-400'}">${fmt(bal)}</div>
+      </div>`); gvBalances.appendChild(line);
+    });
+
+    document.getElementById('btnSimplify').onclick = ()=>{ const tx = simplifyDebts(balances); alert(tx.map(t=>`${t.from} → ${t.to}: ${fmt(t.amount)}`).join('\n') || 'Nothing to settle!'); }
+    document.getElementById('btnSettleAll').onclick = ()=>{ markGroupSettled(gid); closeAllModals(); render(); showToast('Group settled'); }
+
+    modalGroupView.classList.remove('hidden'); modalGroupView.classList.add('flex');
+  }
+
+  function calcGroupBalances(gid){
+    const g = db.groups.find(x=>x.id===gid); const bal = {}; g.members.forEach(m=>bal[m]=0);
+    db.expenses.filter(e=>e.gId===gid).forEach(e=>{
+      bal[e.payer] += e.amount;
+      Object.entries(e.split).forEach(([m,share])=> bal[m] -= share);
+    });
+    Object.keys(bal).forEach(k=> bal[k] = +bal[k].toFixed(2));
+    return bal;
+  }
+
+  function simplifyDebts(bal){
+    const debtors = Object.entries(bal).filter(([,v])=>v<0).map(([m,v])=>({m, v: -v}));
+    const creditors = Object.entries(bal).filter(([,v])=>v>0).map(([m,v])=>({m, v}));
+    debtors.sort((a,b)=>b.v-a.v); creditors.sort((a,b)=>b.v-a.v);
+    const tx = []; let i=0,j=0;
+    while(i<debtors.length && j<creditors.length){
+      const pay = Math.min(debtors[i].v, creditors[j].v);
+      tx.push({ from: debtors[i].m, to: creditors[j].m, amount: +pay.toFixed(2) });
+      debtors[i].v -= pay; creditors[j].v -= pay;
+      if(debtors[i].v < 0.01) i++; if(creditors[j].v < 0.01) j++;
+    }
+    return tx;
+  }
+
+  function markGroupSettled(gid){
+    db.expenses.filter(e=>e.gId===gid && e.status==='unpaid').forEach(e=> e.status='paid'); store.save(db);
+  }
+
+  const modalAnalytics = document.getElementById('modalAnalytics');
+  function openAnalytics(){ modalAnalytics.classList.remove('hidden'); modalAnalytics.classList.add('flex'); renderAnalytics(); }
+
+  function monthlyBuckets(){
+    const map = new Map();
+    db.expenses.forEach(e=>{
+      const m = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
+      map.set(m, (map.get(m)||0) + e.amount);
+    });
+    return [...map.entries()].sort(([a],[b])=> a.localeCompare(b));
+  }
+
+  let chart;
+  function renderAnalytics(){
+    const ctx = document.getElementById('chartMonthly');
+    const data = monthlyBuckets();
+    const labels = data.map(d=>d[0]);
+    const values = data.map(d=>+d[1].toFixed(2));
+    if(chart) chart.destroy();
+    chart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'Total Expenses', data: values }] }, options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } } });
+
+    const total = values.reduce((a,b)=>a+b,0);
+    const maxIdx = values.indexOf(Math.max(...values));
+    const insights = document.getElementById('insights');
+    insights.innerHTML = `<div class="mt-2">Total recorded: <b>${fmt(total)}</b>. Peak month: <b>${labels[maxIdx]||'—'}</b>.</div>`;
+  }
+
+  function renderOthers(){
+    toolbar.innerHTML = '';
+    content.innerHTML = '';
+    const list = db.expenses.filter(e=> e.status!=='paid' && e.payer!==currentUser() && (e.split[currentUser()]||0)>0);
+    if(!list.length){ content.appendChild(el('<div class="text-center text-gray-400 py-8">No expenses from others yet</div>')); return; }
+    list.sort((a,b)=>b.created-a.created).forEach(e=> content.appendChild(expenseCard(e, true)));
+  }
+
+  function renderMine(){
+    toolbar.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="text-sm font-semibold">Expenses</div>
+        <div class="flex items-center gap-2">
+<input id="searchBox"
+  class="bg-gray-700 rounded-lg h-8 w-28 sm:w-36 px-2 text-xs ml-8
+         placeholder:text-[11px] focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+  placeholder="Search"/>          <select id="filterCat" class="bg-gray-700 rounded-xl px-2 py-1 text-sm">
+            <option value="">All</option><option>Food</option><option>Rent</option><option>Utilities</option><option>Transport</option><option>Shopping</option><option>Travel</option>
+          </select>
+          <button id="btnReminders" class="px-3 py-1 rounded bg-gray-700 text-sm">🔔</button>
+          <button id="btnFilterOverdue" class="px-3 py-1 rounded bg-gray-700 text-sm">⏰</button>
+        </div>
+      </div>`;
+    const searchBox = toolbar.querySelector('#searchBox');
+    const filterCat = toolbar.querySelector('#filterCat');
+
+    content.innerHTML = '';
+    const all = db.expenses.filter(e=>e.payer===currentUser());
+    if(!all.length){ content.appendChild(el('<div class="text-center text-gray-400 py-8">Add your first expense</div>')); return; }
+
+    const apply = ()=>{
+      content.innerHTML='';
+      const q = (searchBox.value||'').toLowerCase();
+      const fc = filterCat.value;
+      let items = all.filter(e=> (!q || e.name.toLowerCase().includes(q) || (e.note||'').toLowerCase().includes(q)) && (!fc || e.category===fc));
+      items.sort((a,b)=> (b.created - a.created)).forEach(e=> content.appendChild(expenseCard(e)));
+      refreshKPI();
+    };
+    searchBox.oninput = apply; filterCat.onchange = apply; apply();
+
+    document.getElementById('btnReminders').onclick = ()=> runSmartReminders();
+    document.getElementById('btnFilterOverdue').onclick = ()=>{
+      content.querySelectorAll('[data-due]').forEach(n=> n.classList.toggle('hidden', n.dataset.due!=='overdue'));
+    }
+  }
+
+  function expenseCard(e, showSettle){
+    const g = db.groups.find(x=>x.id===e.gId);
+    const dueState = e.due ? (Date.now()>e.due ? 'overdue' : 'due') : 'none';
+    const wrap = el(`<div class="bg-gray-700 rounded-2xl p-3 space-y-2" data-due="${dueState}"></div>`);
+    const head = el(`<div class="flex items-center justify-between">
+      <div>
+        <div class="text-xs text-gray-300">${(e.date||'').slice(0,10)} • ${g?.name||'—'} • ${e.category}</div>
+        <div class="font-medium">${e.name}</div>
+        ${e.note?`<div class="text-xs text-gray-400">${e.note}</div>`:''}
+      </div>
+      <div class="text-right">
+        <div class="font-semibold">${fmt(e.amount)}</div>
+        <div class="flex justify-end gap-1">
+          <span class="chip ${e.status==='paid'?'bg-green-700':'bg-yellow-700'}">${e.status==='paid'?'Paid':'Unpaid'}</span>
+          ${dueState==='overdue'?'<span class="chip bg-red-700">Overdue</span>': (dueState==='due'?'<span class="chip bg-gray-600">Due</span>':'')}
+        </div>
+      </div>
+    </div>`);
+    wrap.appendChild(head);
+
+    const splitLines = Object.entries(e.split).map(([m,x])=>`<div class="flex justify-between text-sm"><span>${m}</span><span>${fmt(x)}</span></div>`).join('');
+    wrap.appendChild(el(`<div class="bg-gray-800 rounded-xl p-2">${splitLines}</div>`));
+
+    const actions = el(`<div class="flex items-center justify-between text-sm">
+      <div class="space-x-2">
+        <button data-remind="${e.id}" class="px-2 py-1 rounded bg-orange-500">Remind</button>
+        <button data-paid="${e.id}" class="px-2 py-1 rounded bg-gray-900">${e.status==='paid'?'Unmark':'Mark paid'}</button>
+      </div>
+      <div class="space-x-2">
+        <button data-edit="${e.id}" class="px-2 py-1 rounded bg-gray-900">Edit</button>
+        <button data-del="${e.id}" class="px-2 py-1 rounded bg-red-600">Delete</button>
+      </div>
+    </div>`);
+    wrap.appendChild(actions);
+
+    if(showSettle){
+      const owe = e.split[currentUser()] || 0;
+      wrap.appendChild(el(`
+        <div class="pt-1 text-xs text-gray-300">
+          You owe ${fmt(owe)}.
+          <button data-pay="${e.id}" class="underline">Pay now</button>
+        </div>`));
+      // (Removed the old "Settle now" line to avoid duplication)
+    }
+
+    if(e.remindAt && Date.now()>e.remindAt && e.status==='unpaid') wrap.appendChild(el(`<div class="text-xs text-yellow-300">🔔 Reminder pending</div>`));
+
+    actions.querySelector(`[data-remind]`).onclick = ()=>{ alert('Reminder sent! 📧'); e.remindAt = Date.now()+3*864e5; store.save(db); showToast('Reminder scheduled'); }
+    actions.querySelector(`[data-paid]`).onclick = ()=>{ e.status = e.status==='paid' ? 'unpaid' : 'paid'; store.save(db); render(); }
+    actions.querySelector(`[data-del]`).onclick = ()=>{ if(confirm('Delete expense?')) { db.expenses = db.expenses.filter(x=>x.id!==e.id); store.save(db); render(); } }
+    actions.querySelector(`[data-edit]`).onclick = ()=>{ db._editingId = e.id; openAddExpense(e.id); }
+
+    return wrap;
+  }
+
+  // Event delegation for any future dynamic "Pay now" buttons
+  content.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-pay]');
+    if (!btn) return;
+    openPayment(btn.getAttribute('data-pay'));
+  });
+
+  function editExpense(id){ db._editingId = id; openAddExpense(id); }
+
+  function runSmartReminders(){
+    const dueSoon = db.expenses.filter(e=> e.status==='unpaid' && e.remindAt && Date.now()>e.remindAt);
+    if(!dueSoon.length) { showToast('No pending reminders'); return; }
+    alert('Sent reminders for:\n' + dueSoon.map(e=> `${e.name} (${fmt(e.amount)})`).join('\n'));
+    dueSoon.forEach(e=> e.remindAt = Date.now()+3*864e5); store.save(db);
+  }
+
+  document.getElementById('btnExport').onclick = ()=>{
+    const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='cashmeup.json'; a.click(); URL.revokeObjectURL(url);
+  }
+  document.getElementById('fileImport').onchange = (e)=>{
+    const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = ()=>{ try{ db = JSON.parse(r.result); store.save(db); render(); showToast('Imported'); }catch{ alert('Invalid JSON'); } }; r.readAsText(f);
+  }
+  document.getElementById('btnReset').onclick = ()=>{ if(confirm('Reset all data?')) { localStorage.removeItem(store.key); db = store.load(); seedDemo(); render(); } };
+
+  function currentUser(){ return db.profile?.name || 'Divyansh'; }
+
+  function refreshKPI(){
+    const mine = db.expenses.filter(e=>e.payer===currentUser() && e.status==='unpaid');
+    const total = mine.reduce((s,e)=> s+e.amount, 0);
+    const owedToMe = mine.reduce((s,e)=>{ const myShare = e.split[currentUser()]||0; return s + (e.amount - myShare); }, 0);
+    const iOwe = db.expenses.filter(e=> e.status==='unpaid' && e.payer!==currentUser()).reduce((s,e)=> s + (e.split[currentUser()]||0), 0);
+    document.getElementById('hdrTotal').textContent = fmt(total);
+    document.getElementById('kpiUnpaid').textContent = mine.length;
+    document.getElementById('kpiOwedToMe').textContent = fmt(owedToMe);
+    document.getElementById('kpiIOwe').textContent = fmt(iOwe);
+  }
+
+  function renderProfile(){
+    toolbar.innerHTML = '';
+    const totalAll = db.expenses.reduce((s,e)=>s+e.amount,0);
+    const myPaid = db.expenses.filter(e=>e.payer===currentUser()).reduce((s,e)=>s+e.amount,0);
+    const myOwe = db.expenses.filter(e=> e.status!=='paid' && e.payer!==currentUser()).reduce((s,e)=>s+(e.split[currentUser()]||0),0);
+    const months = monthlyBuckets();
+    content.innerHTML = `
+      <div class="bg-gray-700 rounded-2xl p-3 mb-2 flex items-center gap-3">
+        <div class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-xl font-bold">${(currentUser()[0]||'U').toUpperCase()}</div>
+        <div><div class="font-semibold text-lg">${currentUser()}</div><div class="text-xs text-gray-300">${db.profile?.currency||'USD'}</div></div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-sm mb-2">
+        <div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">${fmt(totalAll)}</div><div>Total</div></div>
+        <div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">${fmt(myPaid)}</div><div>Paid</div></div>
+        <div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">${fmt(myOwe)}</div><div>To Pay</div></div>
+      </div>
+      <div class="bg-gray-700 rounded-2xl p-3">
+        <div class="font-semibold mb-1">Timeline</div>
+        <div id="timeline" class="space-y-2"></div>
+      </div>
+      <div class="mt-2">
+        <button id="btnProfileAnalytics" class="w-full bg-gray-700 rounded-xl px-3 py-2">📈 View Insights</button>
+      </div>
+    `;
+    const tl = document.getElementById('timeline');
+    const grouped = {};
+    db.expenses.slice().sort((a,b)=>b.created-a.created).forEach(e=>{
+      const key = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
+      (grouped[key] ||= []).push(e);
+    });
+    Object.entries(grouped).forEach(([m,arr])=>{
+      const section = el(`<div><div class="text-xs text-gray-300">${m}</div></div>`);
+      arr.forEach(e=>{
+        section.appendChild(el(`<div class="flex justify-between bg-gray-800 rounded-xl px-3 py-2 mt-1">
+          <div class="text-sm">${e.name} <span class="text-gray-400">• ${e.category}</span></div>
+          <div class="text-sm">${fmt(e.amount)}</div>
+        </div>`));
+      });
+      tl.appendChild(section);
+    });
+    document.getElementById('btnProfileAnalytics').onclick = openAnalytics;
+  }
+
+  function render(){
+    if(currentTab==='mine') renderMine();
+    else if(currentTab==='others') renderOthers();
+    else if(currentTab==='groups') renderGroupsScreen();
+    else if(currentTab==='profile') renderProfile();
+    refreshKPI();
+  }
+
+  function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; }
+
+  // Seed demo data if empty; ensure an 'Others' expense for current user exists
+  function seedDemo(){
+    if(!db.groups.length){
+      db.groups.push({ id: uid(), name: 'Roommates', members:['Divyansh','Mustafa','Minjun'] });
+    }
+    const g = db.groups[0].id;
+    if(db.expenses.length===0){
+      db.expenses.push(
+        // Payer is Mustafa, so Divyansh sees this under Others' Expenses
+        { id:uid(), name:'Dinner', amount: 45.00, date:new Date().toISOString().slice(0,10), gId:g, payer:'Mustafa', category:'Food', note:'Pizza & wings', split: {'Divyansh':15,'Mustafa':15,'Minjun':15}, status:'unpaid', created:Date.now()-2*864e5 },
+        { id:uid(), name:'Gas', amount: 20.99, date:new Date().toISOString().slice(0,10), gId:g, payer:'Divyansh', category:'Transport', note:'', split: {'Divyansh':7,'Mustafa':7,'Minjun':6.99}, status:'unpaid', created:Date.now()-864e5, due:Date.now()+2*864e5, remindAt:Date.now()+1*864e5 },
+        { id:uid(), name:'Hydro', amount: 78.50, date:new Date().toISOString().slice(0,10), gId:g, payer:'Divyansh', category:'Utilities', note:'', split: {'Divyansh':26.17,'Mustafa':26.17,'Minjun':26.16}, status:'unpaid', created:Date.now()-3*864e5, due:Date.now()-1*864e5 }
+      );
+    } else {
+      // If user data existed but no "others" item, inject one
+      const me = currentUser();
+      const hasOthers = db.expenses.some(e => e.status!=='paid' && e.payer!==me && (e.split[me]||0)>0);
+      if(!hasOthers){
+        db.expenses.push({ id:uid(), name:'Coffee Run', amount: 12.00, date:new Date().toISOString().slice(0,10), gId:g, payer:'Mustafa', category:'Food', note:'Latte x2', split: {'Divyansh':6,'Mustafa':6}, status:'unpaid', created:Date.now()-5*3600*1000 });
+      }
+    }
+    store.save(db);
+  }
+
+  // Init
+  seedDemo();
+  render();
+
+  const params = new URLSearchParams(location.search);
+  if(params.get('join')) showToast(`Joined ${params.get('join')} ✅`);
+  </script>
+</body>
+</html>
