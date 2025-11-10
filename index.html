@@ -15,34 +15,32 @@
     html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
     .phone-outer { padding: 14px; }
     .scroll-smooth { scroll-behavior: smooth; }
-    .glass { backdrop-filter: blur(6px); background: rgba(17,24,39,0.7);}
+    .glass { backdrop-filter: blur(6px); background: rgba(17,24,39,0.7); }
     .mask-notch { width: 160px; height: 28px; }
     .tap { transition: transform .08s ease; }
     .tap:active { transform: scale(.98); }
     .chip { padding: .25rem .5rem; border-radius: 9999px; font-size:.75rem }
+
     * {
       scrollbar-width: thin;
-      scrollbar-color: #1f2937 #374151; /* thumb, track */
+      scrollbar-color: #1f2937 #374151;
     }
-
-    /* WebKit (Chrome/Edge/Safari) — main content scroll */
     #content::-webkit-scrollbar {
       width: 10px;
     }
     #content::-webkit-scrollbar-track {
-      background: #374151;          /* bg-gray-700 */
+      background: #374151;
       border-radius: 9999px;
     }
     #content::-webkit-scrollbar-thumb {
-      background: #46403b;          /* orange accent */
+      background: #46403b;
       border-radius: 9999px;
-      border: 2px solid #1f2937;    /* ring to blend with bg-gray-800 */
+      border: 2px solid #1f2937;
     }
     #content::-webkit-scrollbar-thumb:hover {
-      background: #555054;          /* lighter on hover */
+      background: #555054;
     }
 
-    /* Optional: global body scrollbar (if page itself scrolls) */
     body::-webkit-scrollbar { width: 10px; }
     body::-webkit-scrollbar-track { background: #374151; }
     body::-webkit-scrollbar-thumb {
@@ -61,12 +59,14 @@
     <div class="absolute top-0 left-1/2 -translate-x-1/2 mask-notch bg-black rounded-b-3xl z-10"></div>
 
     <div class="relative bg-gray-800 w-[380px] h-[800px] rounded-[3rem] overflow-hidden shadow-xl">
+      <!-- Top bar -->
       <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between">
         <button id="btnBack" class="text-2xl opacity-60">⟵</button>
         <div class="text-xs text-gray-400"><br><br>CASHMEUP</div>
         <button id="btnSettings" class="text-2xl opacity-80">⚙️</button>
       </div>
 
+      <!-- KPIs -->
       <div class="pt-12 px-6">
         <div class="text-sm text-gray-400">This month bills</div>
         <div id="hdrTotal" class="text-4xl font-extrabold mt-1">$0.00</div>
@@ -86,6 +86,7 @@
         </div>
       </div>
 
+      <!-- Tabs -->
       <div class="px-6 mt-4">
         <div class="flex bg-gray-700 rounded-xl overflow-hidden text-sm">
           <button data-tab="mine" class="tab-btn flex-1 py-2 text-gray-300">My Expenses</button>
@@ -95,9 +96,11 @@
         </div>
       </div>
 
+      <!-- Dynamic toolbar + content -->
       <div id="toolbar" class="px-6 mt-3"></div>
       <div id="content" class="px-6 mt-2 space-y-3 overflow-y-auto pb-28" style="height: 475px"></div>
 
+      <!-- Bottom nav -->
       <div class="absolute bottom-0 inset-x-0 p-4">
         <div class="glass rounded-2xl p-3 flex justify-around items-center text-2xl">
           <button id="btnHome" class="tap" title="Home">🏠</button>
@@ -106,6 +109,7 @@
         </div>
       </div>
 
+      <!-- Toast -->
       <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-28 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm shadow-xl">Saved ✅</div>
     </div>
   </div>
@@ -137,11 +141,13 @@
           <option>Transport</option><option>Shopping</option><option>Travel</option>
         </select>
 
+        <!-- FX -->
         <label id="fxWrap" class="text-[11px] text-gray-300 col-span-2 hidden">
           FX rate (1 <span id="fxCurFrom"></span> in <span id="fxCurTo"></span>)
           <input id="exFxRate" type="number" step="0.0001" class="w-full bg-gray-700 rounded-xl px-3 py-1 mt-1" placeholder="e.g. 1.47">
         </label>
 
+        <!-- Split mode -->
         <label class="flex items-center gap-2 text-sm col-span-2">
           <input id="exEqual" type="checkbox" checked> Split equally
         </label>
@@ -149,12 +155,17 @@
           <div class="text-xs text-gray-300 mb-1">Custom split per member</div>
           <div id="customSplit" class="space-y-2"></div>
         </div>
+
+        <!-- Receipt area -->
         <div class="col-span-2 grid grid-cols-2 gap-2">
+          <!-- Paste text -->
           <div class="bg-gray-700 rounded-xl p-2">
             <div class="text-xs text-gray-300 mb-1">Paste receipt text</div>
             <textarea id="exReceipt" rows="3" class="w-full bg-gray-800 rounded-lg p-2 text-sm" placeholder="Paste receipt text to auto-detect amount"></textarea>
             <button id="btnParseReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600">Parse</button>
           </div>
+
+          <!-- Scan image/camera -->
           <div class="bg-gray-700 rounded-xl p-2">
             <div class="text-xs text-gray-300 mb-1">Scan receipt</div>
 
@@ -180,6 +191,8 @@
             <div id="receiptSummary" class="mt-2 text-[11px] text-gray-300 hidden"></div>
           </div>
         </div>
+
+        <!-- Due + note -->
         <div class="col-span-2 grid grid-cols-2 gap-2 mt-1">
           <label class="text-xs text-gray-300">Due in days
             <input id="exDueDays" type="number" min="0" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="optional">
@@ -189,6 +202,8 @@
           </label>
         </div>
       </div>
+
+      <!-- Footer -->
       <div class="flex justify-between items-center pt-1">
         <label class="flex items-center gap-2 text-sm"><input id="exReminder" type="checkbox"> Smart reminder</label>
         <div class="space-x-2">
@@ -362,6 +377,336 @@
   </div>
 
   <script>
+/* ===================== GUEST MODE HELPERS ===================== */
+/* ===================== GUEST MODE HELPERS ===================== */
+let GUEST_MODE = false;
+
+function b64urlEncode(json) {
+  const s = typeof json === 'string' ? json : JSON.stringify(json);
+  const b64 = btoa(unescape(encodeURIComponent(s)));
+  return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64urlDecodeToJSON(s) {
+  try {
+    const b64 = s.replace(/-/g,'+').replace(/_/g,'/');
+    const txt = decodeURIComponent(escape(atob(b64)));
+    return JSON.parse(txt);
+  } catch {
+    return null;
+  }
+}
+function readGuestPayload() {
+  const h = location.hash || '';
+  const m = h.match(/#guest=([^&]+)/);
+  if (!m) return null;
+  return b64urlDecodeToJSON(m[1]);
+}
+
+/* Render full guest page (expense with Pay now, or read-only statement) */
+function renderGuestPage(payload) {
+  const kind = payload?.kind;
+  const data = payload?.data || {};
+
+  const isExpense = kind === 'expense';
+  const shares = Array.isArray(data.shares) ? data.shares : [];
+  const defaultName = shares[0]?.name || '';
+  const defaultAmount = shares[0]?.amount || data.amount || '';
+
+  if (isExpense) {
+    const optionsHtml = shares.map(s =>
+      `<option value="${s.name}" data-amt="${s.amount}">${s.name}</option>`
+    ).join('');
+
+    const root = `
+      <div class="w-full max-w-md mx-auto bg-gray-900 text-white">
+        <div class="pt-6 pb-4 text-center">
+          <div class="text-2xl font-extrabold tracking-wide">CASHMEUP</div>
+          <div class="text-sm text-gray-400 mt-1">Guest view</div>
+        </div>
+
+        <div class="bg-gray-800 rounded-3xl p-5 space-y-5 shadow-2xl">
+          <!-- Shared expense summary -->
+          <div>
+            <div class="text-xs text-gray-300 mb-1">Shared expense</div>
+            <div class="text-2xl font-semibold">${data.name || 'Expense'}</div>
+            <div class="mt-2 space-y-1 text-sm text-gray-300">
+              <div>Date: ${data.date || '—'}</div>
+              <div>Group: ${data.groupName || '—'}</div>
+              <div>Payer: ${data.payer || '—'}</div>
+            </div>
+
+            <div class="border-t border-gray-700 mt-4 pt-3 flex items-center justify-between text-sm">
+              <span class="text-gray-300">Total:</span>
+              <span class="text-lg font-bold">${data.amount || '—'}</span>
+            </div>
+
+            <div class="mt-3 bg-gray-900 rounded-2xl p-3 text-sm">
+              ${shares.map(s =>
+                `<div class="flex justify-between py-0.5">
+                   <span>${s.name}</span>
+                   <span>${s.amount}</span>
+                 </div>`
+              ).join('')}
+            </div>
+          </div>
+
+          <!-- Pay now -->
+          <form id="guestPayForm" class="space-y-4">
+            <div class="space-y-2">
+              <div class="text-sm font-medium">Pay now</div>
+
+              <div class="text-xs text-gray-300">Who are you?</div>
+              <select id="guestWho"
+                      class="w-full bg-gray-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60">
+                ${optionsHtml}
+              </select>
+
+              <div class="text-xs text-gray-300 mt-3">Your email (for receipt)</div>
+              <input id="guestEmail"
+                     type="email"
+                     placeholder="you@example.com"
+                     class="w-full bg-gray-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60"/>
+
+              <div class="flex items-center justify-between mt-3 text-sm">
+                <span class="text-gray-300">Amount</span>
+                <span id="guestAmountLabel" class="font-semibold">${defaultAmount}</span>
+              </div>
+            </div>
+
+            <!-- Payment methods -->
+            <div>
+              <div class="text-xs font-medium mb-2 text-gray-200">Payment method</div>
+              <div class="grid grid-cols-3 gap-2 text-xs">
+                <button type="button"
+                        data-guest-method="card"
+                        class="guest-pm-btn bg-gray-900 rounded-xl px-3 py-2 font-medium border border-orange-500/70">
+                  💳 Card
+                </button>
+                <button type="button"
+                        data-guest-method="bank"
+                        class="guest-pm-btn bg-gray-700 rounded-xl px-3 py-2">
+                  🏦 Bank (ACH)
+                </button>
+                <button type="button"
+                        data-guest-method="paypal"
+                        class="guest-pm-btn bg-gray-700 rounded-xl px-3 py-2">
+                  🅿 PayPal
+                </button>
+              </div>
+            </div>
+
+            <!-- Card fields (for demo / fake checkout) -->
+            <div id="guestCardSection" class="space-y-2 text-sm">
+              <div>
+                <div class="text-xs text-gray-300 mb-1">Name on card</div>
+                <input id="guestCardName"
+                       class="w-full bg-gray-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60"
+                       placeholder="Full name"/>
+              </div>
+
+              <div>
+                <div class="text-xs text-gray-300 mb-1">Card number</div>
+                <input id="guestCardNumber"
+                       class="w-full bg-gray-900 rounded-xl px-3 py-2 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-500/60"
+                       placeholder="4242 4242 4242 4242"/>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <div class="text-xs text-gray-300 mb-1">Expiry (MM/YY)</div>
+                  <input id="guestCardExp"
+                         class="w-full bg-gray-900 rounded-xl px-3 py-2 text-sm"
+                         placeholder="12/30"/>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-300 mb-1">CVC</div>
+                  <input id="guestCardCvc"
+                         class="w-full bg-gray-900 rounded-xl px-3 py-2 text-sm"
+                         placeholder="123"/>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-300 mb-1">Postal/ZIP</div>
+                  <input id="guestCardZip"
+                         class="w-full bg-gray-900 rounded-xl px-3 py-2 text-sm"
+                         placeholder="12345"/>
+                </div>
+              </div>
+
+              <details class="mt-1 text-xs text-gray-400">
+                <summary class="cursor-pointer select-none">Billing address (optional)</summary>
+                <input class="mt-1 w-full bg-gray-900 rounded-xl px-3 py-2 text-xs"
+                       placeholder="Street, City, Country"/>
+              </details>
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <div id="guestPayMsg" class="text-xs text-red-400"></div>
+              <button type="submit"
+                      class="tap bg-orange-500 text-white px-5 py-2 rounded-full text-sm font-semibold shadow-lg">
+                Pay now
+              </button>
+            </div>
+
+            <div class="text-[11px] text-gray-400 pt-2 border-t border-gray-700 mt-3">
+              This guest link is read-only for your group data. Payment details are used only to process this
+              transaction (demo only — no real charge).
+            </div>
+          </form>
+        </div>
+
+        <div class="text-center text-[11px] text-gray-500 mt-4">
+          Read-only preview
+        </div>
+      </div>
+    `;
+    document.body.innerHTML = root;
+    setupGuestExpenseInteractions(payload);
+    return;
+  }
+
+  /* fallback: group statement / unknown kind = read-only block */
+  const balances = data.balances || [];
+  const transfers = data.transfers || [];
+
+  const root = `
+    <div class="min-h-screen bg-gray-900 text-white p-5 font-[Inter]">
+      <div class="max-w-md mx-auto">
+        <div class="text-center mb-5">
+          <div class="text-2xl font-extrabold tracking-wide">CASHMEUP</div>
+          <div class="text-sm text-gray-400 mt-1">Guest view</div>
+        </div>
+
+        <div class="bg-gray-800 rounded-2xl p-4 space-y-3">
+          <div class="text-sm text-gray-300">Group statement</div>
+          <div class="text-xl font-semibold">${data.groupName || 'Group'}</div>
+          <div class="text-sm text-gray-300">
+            Members: ${(data.members || []).join(', ') || '—'}
+          </div>
+
+          <div class="border-t border-gray-700 pt-3"></div>
+
+          <div class="text-sm font-medium">Balances</div>
+          <div class="bg-gray-900 rounded-xl p-3 text-sm mb-2">
+            ${balances.map(b =>
+              `<div class="flex justify-between py-0.5">
+                 <span>${b.name}</span>
+                 <span>${b.amount}</span>
+               </div>`
+            ).join('')}
+          </div>
+
+          <div class="text-sm font-medium">Settle suggestions</div>
+          <div class="bg-gray-900 rounded-xl p-3 text-sm">
+            ${
+              transfers.length
+                ? transfers.map(t =>
+                    `<div>${t.from} → ${t.to}: ${t.amount}</div>`
+                  ).join('')
+                : '<div class="text-gray-400">All settled 🎉</div>'
+            }
+          </div>
+        </div>
+
+        <div class="text-center text-xs text-gray-500 mt-4">
+          Read-only preview
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.innerHTML = root;
+}
+
+/* Wire up interactions for expense guest page */
+function setupGuestExpenseInteractions(payload) {
+  const data = payload?.data || {};
+  const shares = Array.isArray(data.shares) ? data.shares : [];
+
+  const whoSelect = document.getElementById('guestWho');
+  const amtLabel = document.getElementById('guestAmountLabel');
+  const methodButtons = Array.from(document.querySelectorAll('.guest-pm-btn'));
+  const cardSection = document.getElementById('guestCardSection');
+  const msgEl = document.getElementById('guestPayMsg');
+  const form = document.getElementById('guestPayForm');
+
+  function updateAmount() {
+    const opt = whoSelect.options[whoSelect.selectedIndex];
+    const amt = opt?.getAttribute('data-amt') || data.amount || '—';
+    amtLabel.textContent = amt;
+  }
+  if (whoSelect) {
+    whoSelect.addEventListener('change', updateAmount);
+    updateAmount();
+  }
+
+  function chooseMethod(m) {
+    methodButtons.forEach(btn => {
+      const active = btn.dataset.guestMethod === m;
+      btn.classList.toggle('bg-gray-900', active);
+      btn.classList.toggle('border', active);
+      btn.classList.toggle('border-orange-500/70', active);
+    });
+    // Only show card fields for card; others are placeholders
+    cardSection.classList.toggle('hidden', m !== 'card');
+  }
+  methodButtons.forEach(btn => {
+    btn.addEventListener('click', () => chooseMethod(btn.dataset.guestMethod));
+  });
+  chooseMethod('card');
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    msgEl.textContent = '';
+
+    const who = whoSelect?.value || '';
+    const email = document.getElementById('guestEmail').value.trim();
+
+    if (!who) {
+      msgEl.textContent = 'Pick who you are.';
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      msgEl.textContent = 'Enter a valid email.';
+      return;
+    }
+
+    // Very light fake validation for card
+    const cardNumber = document.getElementById('guestCardNumber').value.replace(/\s+/g,'');
+    const exp = document.getElementById('guestCardExp').value.trim();
+    const cvc = document.getElementById('guestCardCvc').value.trim();
+
+    if (cardSection && !cardSection.classList.contains('hidden')) {
+      if (!/^\d{13,19}$/.test(cardNumber)) {
+        msgEl.textContent = 'Card number looks off.';
+        return;
+      }
+      if (!/^\d{2}\/\d{2}$/.test(exp)) {
+        msgEl.textContent = 'Use MM/YY for expiry.';
+        return;
+      }
+      if (!/^\d{3,4}$/.test(cvc)) {
+        msgEl.textContent = 'CVC should be 3–4 digits.';
+        return;
+      }
+    }
+
+    msgEl.classList.remove('text-red-400');
+    msgEl.classList.add('text-green-400');
+    msgEl.textContent = 'Payment simulated — thanks! (demo only, no real charge)';
+  });
+}
+
+/* Detect guest mode BEFORE booting full app */
+(function maybeHandleGuestMode(){
+  const p = readGuestPayload();
+  if (p) {
+    GUEST_MODE = true;
+    renderGuestPage(p);
+  }
+})();
+
+/* ===================== FULL APP (DISABLED IN GUEST MODE) ===================== */
+if (!GUEST_MODE) {
+
   // ===== Payment state + handlers =====
   let payingExpenseId = null;
   const modalPayment = document.getElementById('modalPayment');
@@ -432,9 +777,30 @@
     showToast('Payment successful ✅');
   });
 
-  // ===== App state, storage, and UI =====
-  const OCR_ENDPOINT = "";
-  const OCR_KEY = "";
+  // ===== App state, storage, OCR config =====
+  const OCR_ENDPOINT = ""; // put your backend OCR endpoint here
+  const OCR_KEY = "";      // optional key if your backend needs it
+
+  // DEMO MODE FLAG + FAKE OCR
+  const DEMO_MODE = true;
+
+  function fakeOcrDemoResult(source){
+    const today = new Date().toISOString().slice(0,10);
+    if(source === 'camera'){
+      return {
+        total: 24.90,
+        date: today,
+        category: 'Food',
+        title: 'Late Night Pizza Receipt'
+      };
+    }
+    return {
+      total: 47.35,
+      date: today,
+      category: 'Shopping',
+      title: 'Walmart Groceries Receipt'
+    };
+  }
 
   const store = {
     key: 'cashmeup_v2',
@@ -522,8 +888,9 @@
   }
   document.querySelectorAll('.modal-close').forEach(b=> b.addEventListener('click', closeAllModals));
 
+  // Tabs
   const tabs = document.querySelectorAll('.tab-btn');
-  let currentTab = 'others'; // start on Others so you immediately see "Pay now"
+  let currentTab = 'others'; // open others first so "Pay now" is visible
   tabs.forEach(btn=>btn.addEventListener('click',()=>{
     currentTab = btn.dataset.tab;
     tabs.forEach(b=>b.classList.remove('bg-gray-900','font-medium','text-white'));
@@ -534,6 +901,7 @@
   document.getElementById('btnHome').onclick = ()=>{ currentTab='mine'; render(); };
   document.getElementById('btnGroups').onclick = ()=>{ currentTab='groups'; render(); };
 
+  // Settings / lock
   const modalSettings = document.getElementById('modalSettings');
   document.getElementById('btnSettings').onclick = ()=>{
     refreshSettingsUI();
@@ -574,6 +942,7 @@
     }
   }
 
+  // Add/Edit expense modal
   const modalAdd = document.getElementById('modalAdd');
   document.getElementById('btnAdd').onclick = ()=>{ openAddExpense(); };
 
@@ -677,9 +1046,12 @@
   }
   document.getElementById('exCurrency').addEventListener('change', syncFxVisibility);
 
+  // ===== Receipt parsing (text) =====
   document.getElementById('btnParseReceipt').onclick = ()=>{
     const t = document.getElementById('exReceipt').value;
-    const nums = (t.match(/\d+[\.,]?\d*/g)||[]).map(function(x){ return parseFloat(x.replace(',','.')); }).filter(function(n){ return !isNaN(n); });
+    const nums = (t.match(/\d+[\.,]?\d*/g)||[])
+      .map(x => parseFloat(x.replace(',','.')))
+      .filter(n => !isNaN(n));
     if(nums.length){
       const total = Math.max.apply(null, nums);
       document.getElementById('exAmount').value = total.toFixed(2);
@@ -692,6 +1064,7 @@
     }
   };
 
+  // Apply OCR / demo result
   function applyReceiptOcrData(data){
     const summary = document.getElementById('receiptSummary');
     let descParts = [];
@@ -702,9 +1075,11 @@
         descParts.push('total ' + total.toFixed(2));
       }
       if (data.date) {
-        document.getElementById('exDate').value =
-          (new Date(data.date)).toISOString().slice(0, 10);
-        descParts.push('date ' + (new Date(data.date)).toISOString().slice(0,10));
+        const d = new Date(data.date);
+        if(!isNaN(d)) {
+          document.getElementById('exDate').value = d.toISOString().slice(0, 10);
+          descParts.push('date ' + d.toISOString().slice(0,10));
+        }
       }
       if (data.category) {
         document.getElementById('exCategory').value = data.category;
@@ -726,7 +1101,16 @@
     }
   }
 
+  // ===== Scan from image (with DEMO_MODE) =====
   document.getElementById('btnScanReceipt').onclick = async ()=>{
+    if (DEMO_MODE) {
+      showToast('Scanning receipt…');
+      setTimeout(()=>{
+        const data = fakeOcrDemoResult('image');
+        applyReceiptOcrData(data);
+      }, 1200);
+      return;
+    }
     const f = document.getElementById('exReceiptImg').files?.[0];
     if(!f){ showToast('No image'); return; }
     if(!OCR_ENDPOINT){ showToast('Set OCR endpoint'); return; }
@@ -741,7 +1125,7 @@
     }
   };
 
-  // Camera receipt capture
+  // ===== Camera receipt capture (with DEMO_MODE) =====
   let receiptCameraStream = null;
   const receiptVideo = document.getElementById('receiptVideo');
   const btnCameraReceipt = document.getElementById('btnCameraReceipt');
@@ -749,7 +1133,7 @@
 
   function stopReceiptCamera(){
     if (receiptCameraStream) {
-      receiptCameraStream.getTracks().forEach(function(t){ t.stop(); });
+      receiptCameraStream.getTracks().forEach(t=>t.stop());
       receiptCameraStream = null;
     }
     receiptVideo.srcObject = null;
@@ -776,6 +1160,16 @@
   };
 
   btnCaptureReceipt.onclick = () => {
+    if (DEMO_MODE) {
+      showToast('Scanning receipt…');
+      setTimeout(()=>{
+        const data = fakeOcrDemoResult('camera');
+        applyReceiptOcrData(data);
+        stopReceiptCamera();
+      }, 1200);
+      return;
+    }
+
     if (!receiptVideo.videoWidth || !receiptVideo.videoHeight) {
       showToast('Camera not ready');
       return;
@@ -814,17 +1208,16 @@
     }, 'image/jpeg', 0.9);
   };
 
-  // Autofill from history (frequent pattern)
+  // Autofill from history
   function autoFillFromHistory(){
-    if(db._editingId) return; // don't override when editing
+    if(db._editingId) return;
     const input = document.getElementById('exName');
     const name = (input.value || '').trim().toLowerCase();
     if(!name) return;
-    const last = db.expenses.slice().reverse().find(function(e){
+    const last = db.expenses.slice().reverse().find(e=>{
       return e.name && e.name.toLowerCase().includes(name);
     });
     if(!last) return;
-    // Only adjust some fields; don't overwrite user amount/date
     document.getElementById('exCategory').value = last.category;
     document.getElementById('exGroup').value = last.gId;
     buildCustomSplit();
@@ -832,14 +1225,14 @@
   }
   document.getElementById('exName').addEventListener('blur', autoFillFromHistory);
 
-  // Budget helpers
+  // ===== Budgets =====
   function monthlySpendForCategory(cat, dateStr){
     if(!dateStr) return 0;
     const monthKey = dateStr.slice(0,7);
     return db.expenses.filter(function(e){
       const d = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
       return e.category === cat && d === monthKey;
-    }).reduce(function(s,e){ return s + (e.amount||0); }, 0);
+    }).reduce((s,e)=> s + (e.amount||0), 0);
   }
 
   function checkBudgetWarning(cat, amount, dateStr){
@@ -853,6 +1246,7 @@
     }
   }
 
+  // Save expense
   document.getElementById('btnSaveEx').onclick = ()=>{
     const name = document.getElementById('exName').value.trim();
     const rawAmount = +document.getElementById('exAmount').value;
@@ -891,11 +1285,11 @@
       group.members.forEach(m=> split[m] = +share.toFixed(2));
     } else {
       let sum=0;
-      document.querySelectorAll('#customSplit [data-member]').forEach(function(i){
+      document.querySelectorAll('#customSplit [data-member]').forEach(i=>{
         sum += (+i.value||0);
       });
       if(Math.abs(sum-amount) > 0.01) { alert('Custom split must sum to total'); return; }
-      document.querySelectorAll('#customSplit [data-member]').forEach(function(i){
+      document.querySelectorAll('#customSplit [data-member]').forEach(i=>{
         split[i.dataset.member] = +(i.value||0);
       });
     }
@@ -951,6 +1345,7 @@
     render();
   };
 
+  // ===== Groups =====
   const modalGroup = document.getElementById('modalGroup');
   const grpMembers = document.getElementById('grpMembers');
   document.getElementById('btnGroups').addEventListener('click',()=>{ currentTab='groups'; render(); });
@@ -970,11 +1365,10 @@
     content.appendChild(header);
 
     db.groups.forEach(function(g){
-      const total = db.expenses.filter(function(e){ return e.gId===g.id; }).reduce(function(s,e){ return s+e.amount; },0);
+      const total = db.expenses.filter(e=>e.gId===g.id).reduce((s,e)=>s+e.amount,0);
       const fairness = calcGroupFairness(g.id);
       let fairnessLine = '';
       if(Object.keys(fairness).length){
-        // Show who is most overpaying/underpaying
         let best = null;
         Object.keys(fairness).forEach(function(m){
           const f = fairness[m];
@@ -987,16 +1381,27 @@
       }
       const typeLabel = g.type || 'Regular';
       const card = el(
-        '<div class="bg-gray-700 rounded-2xl p-3 flex items-center justify-between">' +
-          '<div>' +
+        '<div class="bg-gray-700 rounded-2xl px-4 py-3 flex items-center justify-between">' +
+          // left text block
+          '<div class="space-y-0.5">' +
             '<div class="text-sm text-gray-300">Group • '+typeLabel+'</div>' +
-            '<div class="text-lg font-semibold">'+g.name+'</div>' +
+            '<div class="text-xl font-semibold leading-snug">'+g.name+'</div>' +
             '<div class="text-xs text-gray-300">'+g.members.join(', ')+'</div>' +
             '<div class="text-xs text-gray-400 mt-1">Total: '+fmt(total)+ fairnessLine +'</div>' +
           '</div>' +
-          '<div class="space-x-2">' +
-            '<button data-gv="'+g.id+'" class="px-3 py-1 rounded bg-gray-900">View</button>' +
-            '<button data-invite="'+g.id+'" class="px-3 py-1 rounded bg-gray-900">Invite</button>' +
+
+          // right buttons block
+          '<div class="flex flex-col items-end gap-2 ml-4">' +
+            '<button ' +
+              'data-gv="'+g.id+'" ' +
+              'class="min-w-[90px] px-4 py-2 rounded-xl bg-gray-900 text-sm font-semibold text-white shadow-sm">' +
+              'View' +
+            '</button>' +
+            '<button ' +
+              'data-invite="'+g.id+'" ' +
+              'class="min-w-[90px] px-4 py-2 rounded-xl bg-gray-900 text-sm text-white shadow-sm">' +
+              'Invite' +
+            '</button>' +
           '</div>' +
         '</div>'
       );
@@ -1010,10 +1415,10 @@
     };
     document.getElementById('btnOpenAnalytics').onclick = ()=> openAnalytics();
 
-    content.querySelectorAll('[data-gv]').forEach(function(b){
+    content.querySelectorAll('[data-gv]').forEach(b=>{
       b.onclick = ()=> openGroupView(b.getAttribute('data-gv'));
     });
-    content.querySelectorAll('[data-invite]').forEach(function(b){
+    content.querySelectorAll('[data-invite]').forEach(b=>{
       b.onclick = ()=>{
         const g = db.groups.find(x=>x.id===b.dataset.invite);
         const link = location.origin + location.pathname + '?join=' + encodeURIComponent(g.name);
@@ -1025,7 +1430,7 @@
 
   function buildMemberChips(){
     grpMembers.innerHTML = '';
-    db.users.forEach(function(u){ grpMembers.appendChild(memberChip(u)); });
+    db.users.forEach(u=> grpMembers.appendChild(memberChip(u)));
   }
   function memberChip(name){
     const d = el(
@@ -1046,8 +1451,8 @@
     const name = document.getElementById('grpName').value.trim();
     const type = document.getElementById('grpType').value || 'Regular';
     const members = Array.from(grpMembers.querySelectorAll('label'))
-      .filter(function(l){ return l.querySelector('input').checked; })
-      .map(function(l){ return l.querySelector('span').textContent; });
+      .filter(l=>l.querySelector('input').checked)
+      .map(l=>l.querySelector('span').textContent);
     if(!name || members.length<2) { alert('Enter name and pick at least 2 members'); return; }
     db.groups.push({ id:uid(), name, type, members});
     store.save(db);
@@ -1057,13 +1462,13 @@
   };
 
   function groupExpenses(gid){
-    return db.expenses.filter(function(e){ return e.gId===gid; });
+    return db.expenses.filter(e=>e.gId===gid);
   }
 
   function calcGroupBalances(gid){
     const g = db.groups.find(x=>x.id===gid);
     const bal = {};
-    g.members.forEach(function(m){ bal[m]=0; });
+    g.members.forEach(m=>{ bal[m]=0; });
     groupExpenses(gid).forEach(function(e){
       bal[e.payer] += e.amount;
       Object.entries(e.split).forEach(function(pair){
@@ -1071,23 +1476,21 @@
         bal[m] -= share;
       });
     });
-    Object.keys(bal).forEach(function(k){ bal[k] = +bal[k].toFixed(2); });
+    Object.keys(bal).forEach(k=>{ bal[k] = +bal[k].toFixed(2); });
     return bal;
   }
 
   function calcGroupFairness(gid){
-    const g = db.groups.find(function(x){ return x.id===gid; });
+    const g = db.groups.find(x=>x.id===gid);
     if(!g) return {};
     const members = g.members;
     const stats = {};
-    members.forEach(function(m){
-      stats[m] = { paid:0, fair:0, delta:0 };
-    });
+    members.forEach(m=>{ stats[m] = { paid:0, fair:0, delta:0 }; });
     const exps = groupExpenses(gid);
     exps.forEach(function(e){
       const size = g.members.length || Object.keys(e.split||{}).length || 1;
       const shareEach = e.amount / size;
-      members.forEach(function(m){ stats[m].fair += shareEach; });
+      members.forEach(m=>{ stats[m].fair += shareEach; });
       if(stats[e.payer]) stats[e.payer].paid += e.amount;
     });
     members.forEach(function(m){
@@ -1099,12 +1502,12 @@
   }
 
   function calcTrustScores(gid){
-    const g = db.groups.find(function(x){ return x.id===gid; });
+    const g = db.groups.find(x=>x.id===gid);
     if(!g) return {};
     const now = Date.now();
     const exps = groupExpenses(gid);
     const result = {};
-    g.members.forEach(function(m){ result[m] = {days:0,count:0,avgDays:null,label:''}; });
+    g.members.forEach(m=>{ result[m] = {days:0,count:0,avgDays:null,label:''}; });
     exps.forEach(function(e){
       const created = e.created || now;
       const involved = Object.keys(e.split||{});
@@ -1137,7 +1540,7 @@
   }
 
   function calcTripStats(gid){
-    const g = db.groups.find(function(x){ return x.id===gid; });
+    const g = db.groups.find(x=>x.id===gid);
     if(!g) return null;
     const exps = groupExpenses(gid);
     if(!exps.length) return null;
@@ -1168,14 +1571,10 @@
   }
 
   function simplifyDebts(bal){
-    const debtors = Object.entries(bal).filter(function(entry){ return entry[1]<0; }).map(function(entry){
-      return {m:entry[0], v:-entry[1]};
-    });
-    const creditors = Object.entries(bal).filter(function(entry){ return entry[1]>0; }).map(function(entry){
-      return {m:entry[0], v:entry[1]};
-    });
-    debtors.sort(function(a,b){ return b.v-a.v; });
-    creditors.sort(function(a,b){ return b.v-a.v; });
+    const debtors = Object.entries(bal).filter(e=>e[1]<0).map(e=>({m:e[0], v:-e[1]}));
+    const creditors = Object.entries(bal).filter(e=>e[1]>0).map(e=>({m:e[0], v:e[1]}));
+    debtors.sort((a,b)=>b.v-a.v);
+    creditors.sort((a,b)=>b.v-a.v);
     const tx = []; let i=0,j=0;
     while(i<debtors.length && j<creditors.length){
       const pay = Math.min(debtors[i].v, creditors[j].v);
@@ -1189,8 +1588,8 @@
 
   function markGroupSettled(gid){
     const now = Date.now();
-    db.expenses.filter(function(e){ return e.gId===gid && e.status==='unpaid'; })
-      .forEach(function(e){
+    db.expenses.filter(e=>e.gId===gid && e.status==='unpaid')
+      .forEach(e=>{
         e.status='paid';
         e.settledAt = now;
       });
@@ -1229,8 +1628,9 @@
     });
   }
 
+  // ===== Group view + "Share Statement" guest link =====
   function openGroupView(gid){
-    const g = db.groups.find(function(x){ return x.id===gid; });
+    const g = db.groups.find(x=>x.id===gid);
     if(!g) return;
     document.getElementById('gvTitle').textContent = g.name;
     document.getElementById('gvMembers').textContent = 'Members: ' + g.members.join(', ');
@@ -1297,10 +1697,41 @@
       showToast('Group settled');
     };
 
+    // Add "Share Statement" (guest link)
+    const actionsWrap = modalGroupView.querySelector('.space-y-2.mt-2');
+    let shareStmtBtn = document.getElementById('btnShareStatement');
+    if(!shareStmtBtn){
+      shareStmtBtn = el('<button id="btnShareStatement" class="w-full bg-gray-700 rounded-xl px-3 py-2">🔗 Share Statement</button>');
+      actionsWrap.appendChild(shareStmtBtn);
+    }
+    shareStmtBtn.onclick = () => {
+      const g = db.groups.find(x => x.id === gid);
+      const balancesArr = Object.entries(calcGroupBalances(gid)).map(([name, v]) => ({
+        name, amount: fmt(v)
+      }));
+      const tx = simplifyDebts(calcGroupBalances(gid)).map(t => ({
+        from: t.from, to: t.to, amount: fmt(t.amount)
+      }));
+      const payload = {
+        v: 1,
+        kind: 'statement',
+        data: {
+          groupName: g?.name || 'Group',
+          members: g?.members || [],
+          balances: balancesArr,
+          transfers: tx
+        }
+      };
+      const link = location.origin + location.pathname + '#guest=' + b64urlEncode(payload);
+      navigator.clipboard.writeText(link);
+      showToast('Statement link copied');
+    };
+
     modalGroupView.classList.remove('hidden');
     modalGroupView.classList.add('flex');
   }
 
+  // ===== Analytics =====
   const modalAnalytics = document.getElementById('modalAnalytics');
   function openAnalytics(){
     modalAnalytics.classList.remove('hidden');
@@ -1314,35 +1745,126 @@
       const m = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
       map.set(m, (map.get(m)||0) + e.amount);
     });
-    return Array.from(map.entries()).sort(function(a,b){ return a[0].localeCompare(b[0]); });
+    return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0]));
   }
 
   let chart;
   function renderAnalytics(){
     const ctx = document.getElementById('chartMonthly');
-    const data = monthlyBuckets();
-    const labels = data.map(function(d){ return d[0]; });
-    const values = data.map(function(d){ return +d[1].toFixed(2); });
-    if(chart) chart.destroy();
+
+    // use last up to 6 months for the chart + insights
+    const all = monthlyBuckets();
+    const data = all.slice(-6);
+    const labels = data.map(d => d[0]);                // "2025-10"
+    const values = data.map(d => +d[1].toFixed(2));    // monthly totals
+
+    // ---- Chart ----
+    if (chart) chart.destroy();
     chart = new Chart(ctx, {
-      type:'bar',
-      data:{
+      type: 'bar',
+      data: {
         labels,
-        datasets:[{ label:'Total Expenses', data: values }]
+        datasets: [{
+          label: 'Total Expenses (last months)',
+          data: values
+        }]
       },
-      options:{
-        plugins:{ legend:{ display:false } },
-        scales:{ y:{ beginAtZero:true } }
+      options: {
+        plugins: { legend: { display:false } },
+        scales: { y: { beginAtZero:true } }
       }
     });
 
-    const total = values.reduce(function(a,b){ return a+b; },0);
-    const maxIdx = values.length ? values.indexOf(Math.max.apply(null, values)) : -1;
     const insights = document.getElementById('insights');
-    insights.innerHTML = '<div class="mt-2">Total recorded: <b>'+fmt(total)+
-      '</b>. Peak month: <b>'+(labels[maxIdx]||'—')+'</b>.</div>';
+    if (!values.length){
+      insights.innerHTML =
+        '<div class="mt-2 text-sm text-gray-300">No data yet. Add a few expenses to unlock insights.</div>';
+      return;
+    }
+
+    // ---- Core stats ----
+    const total = values.reduce((a,b)=>a+b, 0);
+    const monthsCount = values.length;
+    const avgPerMonth = total / monthsCount;
+
+    const maxVal = Math.max.apply(null, values);
+    const maxIdx = values.indexOf(maxVal);
+    const peakMonth = labels[maxIdx] || '—';
+
+    // Month-over-month change (last vs previous)
+    let trendText = 'Not enough data for trend yet.';
+    if (values.length >= 2){
+      const last = values[values.length-1];
+      const prev = values[values.length-2];
+      if (prev > 0){
+        const diff = last - prev;
+        const pct = (diff / prev) * 100;
+        const dir = diff > 0 ? 'up' : (diff < 0 ? 'down' : 'flat');
+        trendText =
+          'Last month is <b>'+fmt(Math.abs(diff))+'</b> ' +
+          (dir === 'flat'
+            ? 'vs the previous month (flat).'
+            : dir === 'up'
+              ? 'higher than the previous month (<b>'+pct.toFixed(1)+'%</b> up).'
+              : 'lower than the previous month (<b>'+pct.toFixed(1)+'%</b> down).');
+      }
+    }
+
+    // ---- Category breakdown over these months ----
+    const activeMonths = new Set(labels);
+    const catTotals = {};
+    db.expenses.forEach(e => {
+      const m = (e.date || '').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
+      if (!activeMonths.has(m)) return;
+      catTotals[e.category] = (catTotals[e.category] || 0) + (e.amount || 0);
+    });
+
+    let topCat = null, topCatVal = 0;
+    Object.keys(catTotals).forEach(cat => {
+      if (catTotals[cat] > topCatVal){
+        topCatVal = catTotals[cat];
+        topCat = cat;
+      }
+    });
+    const topCatPct = total > 0 ? (topCatVal / total) * 100 : 0;
+
+    // ---- Most expensive group in these months ----
+    const groupTotals = {};
+    db.expenses.forEach(e => {
+      const m = (e.date || '').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
+      if (!activeMonths.has(m)) return;
+      groupTotals[e.gId] = (groupTotals[e.gId] || 0) + (e.amount || 0);
+    });
+
+    let topGroupName = null, topGroupVal = 0;
+    Object.keys(groupTotals).forEach(gid => {
+      const g = db.groups.find(x => x.id === gid);
+      const name = g?.name || 'Group';
+      if (groupTotals[gid] > topGroupVal){
+        topGroupVal = groupTotals[gid];
+        topGroupName = name;
+      }
+    });
+
+    // ---- Build insights text ----
+    insights.innerHTML =
+      '<div class="mt-3 space-y-1 text-sm text-gray-300">' +
+        '<div>Total recorded (last '+monthsCount+' month'+(monthsCount>1?'s':'')+'): ' +
+          '<b>'+fmt(total)+'</b>.</div>' +
+        '<div>Average per month: <b>'+fmt(avgPerMonth)+'</b>.</div>' +
+        '<div>Peak month: <b>'+peakMonth+'</b> with <b>'+fmt(maxVal)+'</b>.</div>' +
+        '<div>'+trendText+'</div>' +
+        (topCat
+          ? '<div>Top category: <b>'+topCat+'</b> ('+fmt(topCatVal)+', ~'+topCatPct.toFixed(1)+'% of spend).</div>'
+          : '') +
+        (topGroupName
+          ? '<div>Most expensive group: <b>'+topGroupName+'</b> ('+fmt(topGroupVal)+').</div>'
+          : '') +
+      '</div>';
   }
 
+
+  // ===== Others tab =====
   function renderOthers(){
     toolbar.innerHTML = '';
     content.innerHTML = '';
@@ -1353,10 +1875,11 @@
       content.appendChild(el('<div class="text-center text-gray-400 py-8">No expenses from others yet</div>'));
       return;
     }
-    list.sort(function(a,b){ return b.created-a.created; })
-        .forEach(function(e){ content.appendChild(expenseCard(e, true)); });
+    list.sort((a,b)=>b.created-a.created)
+        .forEach(e=> content.appendChild(expenseCard(e, true)));
   }
 
+  // ===== Mine tab =====
   function renderMine(){
     toolbar.innerHTML =
       '<div class="flex items-center justify-between">' +
@@ -1377,7 +1900,7 @@
     const filterCat = toolbar.querySelector('#filterCat');
 
     content.innerHTML = '';
-    const all = db.expenses.filter(function(e){ return e.payer===currentUser(); });
+    const all = db.expenses.filter(e=>e.payer===currentUser());
     if(!all.length){
       content.appendChild(el('<div class="text-center text-gray-400 py-8">Add your first expense</div>'));
       return;
@@ -1392,8 +1915,8 @@
         const nm = (e.name||'').toLowerCase();
         return (!q || nm.includes(q) || note.includes(q)) && (!fc || e.category===fc);
       });
-      items.sort(function(a,b){ return b.created - a.created; })
-           .forEach(function(e){ content.appendChild(expenseCard(e)); });
+      items.sort((a,b)=>b.created - a.created)
+           .forEach(e=> content.appendChild(expenseCard(e)));
       refreshKPI();
     };
     searchBox.oninput = apply;
@@ -1408,8 +1931,9 @@
     };
   }
 
+  // ===== Expense card + "Share" guest link =====
   function expenseCard(e, showSettle){
-    const g = db.groups.find(function(x){ return x.id===e.gId; });
+    const g = db.groups.find(x=>x.id===e.gId);
     const dueState = e.due ? (Date.now()>e.due ? 'overdue' : 'due') : 'none';
     const wrap = el('<div class="bg-gray-700 rounded-2xl p-3 space-y-2" data-due="'+dueState+'"></div>');
     const baseCur = baseCurrency();
@@ -1451,15 +1975,12 @@
     wrap.appendChild(el('<div class="bg-gray-800 rounded-xl p-2">'+splitLines+'</div>'));
 
     const actions = el(
-      '<div class="flex items-center justify-between text-sm">' +
-        '<div class="space-x-2">' +
-          '<button data-remind="'+e.id+'" class="px-2 py-1 rounded bg-orange-500">Remind</button>' +
-          '<button data-paid="'+e.id+'" class="px-2 py-1 rounded bg-gray-900">'+(e.status==='paid'?'Unmark':'Mark paid')+'</button>' +
-        '</div>' +
-        '<div class="space-x-2">' +
-          '<button data-edit="'+e.id+'" class="px-2 py-1 rounded bg-gray-900">Edit</button>' +
-          '<button data-del="'+e.id+'" class="px-2 py-1 rounded bg-red-600">Delete</button>' +
-        '</div>' +
+      '<div class="mt-2 grid grid-cols-2 gap-2 text-xs">' +
+        '<button data-remind="'+e.id+'" class="w-full px-3 py-1 rounded bg-orange-500">Remind</button>' +
+        '<button data-paid="'+e.id+'" class="w-full px-3 py-1 rounded bg-gray-900">'+(e.status==='paid'?'Unmark':'Mark paid')+'</button>' +
+        '<button data-share="'+e.id+'" class="w-full px-3 py-1 rounded bg-gray-900">Share</button>' +
+        '<button data-edit="'+e.id+'" class="w-full px-3 py-1 rounded bg-gray-900">Edit</button>' +
+        '<button data-del="'+e.id+'" class="w-full px-3 py-1 rounded bg-red-600 col-span-2">Delete</button>' +
       '</div>'
     );
     wrap.appendChild(actions);
@@ -1497,7 +2018,7 @@
     };
     actions.querySelector('[data-del]').onclick = ()=>{
       if(confirm('Delete expense?')) {
-        db.expenses = db.expenses.filter(function(x){ return x.id!==e.id; });
+        db.expenses = db.expenses.filter(x=>x.id!==e.id);
         store.save(db);
         render();
       }
@@ -1506,11 +2027,33 @@
       db._editingId = e.id;
       openAddExpense(e.id);
     };
+    actions.querySelector('[data-share]').onclick = ()=>{
+      const g = db.groups.find(x=>x.id===e.gId);
+      const shares = Object.entries(e.split).map(([name, amt])=>({
+        name,
+        amount: fmt(amt)
+      }));
+      const payload = {
+        v: 1,
+        kind: 'expense',
+        data: {
+          name: e.name,
+          date: e.date,
+          groupName: g?.name || 'Group',
+          payer: e.payer,
+          amount: fmt(e.amount),
+          shares
+        }
+      };
+      const link = location.origin + location.pathname + '#guest=' + b64urlEncode(payload);
+      navigator.clipboard.writeText(link);
+      showToast('Expense link copied');
+    };
 
     return wrap;
   }
 
-  // Event delegation for "Pay now" buttons
+  // Event delegation for "Pay now"
   content.addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-pay]');
     if (!btn) return;
@@ -1519,18 +2062,18 @@
 
   function editExpense(id){ db._editingId = id; openAddExpense(id); }
 
-  // Notifications modal
+  // ===== Notifications modal =====
   const modalNotifications = document.getElementById('modalNotifications');
 
   function runSmartReminders(){
     const now = Date.now();
-    const dueSoon = db.expenses.filter(function(e){
+    const dueSoon = db.expenses.filter(e=>{
       return e.status==='unpaid' && e.remindAt && now>e.remindAt;
     });
-    const overdue = db.expenses.filter(function(e){
+    const overdue = db.expenses.filter(e=>{
       return e.status==='unpaid' && e.due && now>e.due;
     });
-    const iOwe = db.expenses.filter(function(e){
+    const iOwe = db.expenses.filter(e=>{
       return e.status==='unpaid' && e.payer!==currentUser() && (e.split[currentUser()]||0)>0;
     });
 
@@ -1547,7 +2090,7 @@
           listEl.appendChild(el(
             '<div class="bg-gray-700 rounded-xl px-3 py-2 text-xs">' +
               '<div>'+e.name+' • '+(e.date||'')+'</div>' +
-              '<div>You owe '+fmt(share)+' in '+(db.groups.find(function(g){return g.id===e.gId;})?.name||'group')+'</div>' +
+              '<div>You owe '+fmt(share)+' in '+(db.groups.find(g=>g.id===e.gId)?.name||'group')+'</div>' +
             '</div>'
           ));
         });
@@ -1580,11 +2123,11 @@
     modalNotifications.classList.remove('hidden');
     modalNotifications.classList.add('flex');
 
-    // push reminders forward 3 days
-    dueSoon.forEach(function(e){ e.remindAt = now+3*864e5; });
+    dueSoon.forEach(e=>{ e.remindAt = now+3*864e5; });
     store.save(db);
   }
 
+  // ===== Import/export/reset/demo =====
   document.getElementById('btnExport').onclick = ()=>{
     const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
@@ -1626,16 +2169,17 @@
 
   function currentUser(){ return db.profile?.name || 'Divyansh'; }
 
+  // ===== KPI =====
   function refreshKPI(){
-    const mine = db.expenses.filter(function(e){ return e.payer===currentUser() && e.status==='unpaid'; });
-    const total = mine.reduce(function(s,e){ return s+e.amount; }, 0);
+    const mine = db.expenses.filter(e=>e.payer===currentUser() && e.status==='unpaid');
+    const total = mine.reduce((s,e)=>s+e.amount, 0);
     const owedToMe = mine.reduce(function(s,e){
       const myShare = e.split[currentUser()]||0;
       return s + (e.amount - myShare);
     }, 0);
-    const iOwe = db.expenses.filter(function(e){
+    const iOwe = db.expenses.filter(e=>{
       return e.status==='unpaid' && e.payer!==currentUser();
-    }).reduce(function(s,e){ return s + (e.split[currentUser()]||0); }, 0);
+    }).reduce((s,e)=> s + (e.split[currentUser()]||0), 0);
     document.getElementById('hdrTotal').textContent = fmt(total);
     document.getElementById('kpiUnpaid').textContent = mine.length;
     document.getElementById('kpiOwedToMe').textContent = fmt(owedToMe);
@@ -1645,11 +2189,11 @@
   function recentExpenses(days){
     const now = Date.now();
     const cutoff = now - days*86400000;
-    return db.expenses.filter(function(e){ return e.created && e.created >= cutoff; });
+    return db.expenses.filter(e=> e.created && e.created >= cutoff);
   }
 
   function fairnessForUser(user){
-    const rec = recentExpenses(30).filter(function(e){
+    const rec = recentExpenses(30).filter(e=>{
       return e.split && e.split[user]>0;
     });
     if(!rec.length) return null;
@@ -1657,7 +2201,7 @@
     let myFair = 0;
     rec.forEach(function(e){
       if(e.payer === user) myPaid += e.amount;
-      const g = db.groups.find(function(x){ return x.id===e.gId; });
+      const g = db.groups.find(x=>x.id===e.gId);
       const size = g ? g.members.length : Object.keys(e.split||{}).length || 1;
       myFair += e.amount / size;
     });
@@ -1667,13 +2211,14 @@
     return { myPaid, myFair, delta };
   }
 
+  // ===== Profile tab =====
   function renderProfile(){
     toolbar.innerHTML = '';
-    const totalAll = db.expenses.reduce(function(s,e){ return s+e.amount; },0);
-    const myPaid = db.expenses.filter(function(e){ return e.payer===currentUser(); }).reduce(function(s,e){ return s+e.amount; },0);
-    const myOwe = db.expenses.filter(function(e){
+    const totalAll = db.expenses.reduce((s,e)=>s+e.amount,0);
+    const myPaid = db.expenses.filter(e=>e.payer===currentUser()).reduce((s,e)=>s+e.amount,0);
+    const myOwe = db.expenses.filter(e=>{
       return e.status!=='paid' && e.payer!==currentUser();
-    }).reduce(function(s,e){ return s+(e.split[currentUser()]||0); },0);
+    }).reduce((s,e)=> s+(e.split[currentUser()]||0),0);
 
     const fair = fairnessForUser(currentUser());
     let fairnessHtml = '';
@@ -1715,7 +2260,7 @@
 
     const tl = document.getElementById('timeline');
     const grouped = {};
-    db.expenses.slice().sort(function(a,b){ return b.created-a.created; }).forEach(function(e){
+    db.expenses.slice().sort((a,b)=>b.created-a.created).forEach(function(e){
       const key = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
       if(!grouped[key]) grouped[key] = [];
       grouped[key].push(e);
@@ -1738,7 +2283,6 @@
     const budgets = db.profile?.budgets || {};
     Object.keys(budgets).forEach(function(cat){
       const limit = budgets[cat];
-      // current month
       const today = new Date().toISOString().slice(0,10);
       const used = monthlySpendForCategory(cat, today);
       const row = el(
@@ -1766,6 +2310,7 @@
     document.getElementById('btnProfileAnalytics').onclick = openAnalytics;
   }
 
+  // ===== Render router =====
   function render(){
     if(currentTab==='mine') renderMine();
     else if(currentTab==='others') renderOthers();
@@ -1780,7 +2325,7 @@
     return d.firstElementChild;
   }
 
-  // Seed demo data: richer dataset
+  // ===== Demo seed data =====
   function seedDemo(){
     if(!db.groups.length){
       db.groups.push({ id: uid(), name: 'Roommates', type:'Regular', members:['Divyansh','Mustafa','Minjun'] });
@@ -1822,7 +2367,7 @@
           status:'unpaid', created:Date.now()-3*day,
           due:Date.now()-1*day, remindAt:null, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
         },
-        // Trip group sample
+        // Trip group
         {
           id:uid(), name:'Flight tickets', amount:900, date:todayStr, gId:gTrip,
           payer:'Divyansh', category:'Travel', note:'YYZ → LIS',
@@ -1837,7 +2382,7 @@
           status:'unpaid', created:Date.now()-12*day,
           due:Date.now()-2*day, remindAt:Date.now()-1*day, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
         },
-        // Event group sample with FX
+        // Event group
         {
           id:uid(), name:'Birthday Cake', amount:60, date:todayStr, gId:gEvent,
           payer:'Minjun', category:'Food', note:'Custom chocolate cake',
@@ -1856,7 +2401,6 @@
         }
       );
     } else {
-      // Ensure there's at least one "others" item for current user
       const me = currentUser();
       const hasOthers = db.expenses.some(function(e){
         return e.status!=='paid' && e.payer!==me && (e.split[me]||0)>0;
@@ -1879,7 +2423,6 @@
   seedDemo();
   render();
 
-  // Light onboarding hint
   if(!db.settings.seenIntro){
     showToast('Tip: tap ＋ to add an expense, or check Groups to see balances.');
     db.settings.seenIntro = true;
@@ -1888,6 +2431,8 @@
 
   const params = new URLSearchParams(location.search);
   if(params.get('join')) showToast('Joined '+params.get('join')+' ✅');
+
+} // end !GUEST_MODE
   </script>
 </body>
 </html>

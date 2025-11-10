@@ -1,0 +1,2387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CASHMEUP — Split & Settle</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://js.stripe.com/v3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --card: #111827; --muted:#6b7280; --accent:#f97316; }
+    html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    .phone-outer { padding: 14px; }
+    .scroll-smooth { scroll-behavior: smooth; }
+    .glass { backdrop-filter: blur(6px); background: rgba(17,24,39,0.7); }
+    .mask-notch { width: 160px; height: 28px; }
+    .tap { transition: transform .08s ease; }
+    .tap:active { transform: scale(.98); }
+    .chip { padding: .25rem .5rem; border-radius: 9999px; font-size:.75rem }
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #1f2937 #374151;
+    }
+    #content::-webkit-scrollbar {
+      width: 10px;
+    }
+    #content::-webkit-scrollbar-track {
+      background: #374151;
+      border-radius: 9999px;
+    }
+    #content::-webkit-scrollbar-thumb {
+      background: #46403b;
+      border-radius: 9999px;
+      border: 2px solid #1f2937;
+    }
+    #content::-webkit-scrollbar-thumb:hover {
+      background: #555054;
+    }
+
+    body::-webkit-scrollbar { width: 10px; }
+    body::-webkit-scrollbar-track { background: #374151; }
+    body::-webkit-scrollbar-thumb {
+      background: #4d4642;
+      border-radius: 9999px;
+      border: 2px solid #1f2937;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex justify-center items-center p-4">
+
+  <div class="relative">
+    <div class="absolute inset-0 bg-black rounded-[3rem] shadow-2xl phone-outer">
+      <div class="w-full h-full bg-gray-900 rounded-[2.5rem]"></div>
+    </div>
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 mask-notch bg-black rounded-b-3xl z-10"></div>
+
+    <div class="relative bg-gray-800 w-[380px] h-[800px] rounded-[3rem] overflow-hidden shadow-xl">
+      <!-- Top bar -->
+      <div class="absolute top-0 inset-x-0 p-4 flex items-center justify-between">
+        <button id="btnBack" class="text-2xl opacity-60">⟵</button>
+        <div class="text-xs text-gray-400"><br><br>CASHMEUP</div>
+        <button id="btnSettings" class="text-2xl opacity-80">⚙️</button>
+      </div>
+
+      <!-- KPIs -->
+      <div class="pt-12 px-6">
+        <div class="text-sm text-gray-400">This month bills</div>
+        <div id="hdrTotal" class="text-4xl font-extrabold mt-1">$0.00</div>
+        <div class="grid grid-cols-3 gap-2 bg-gray-700 rounded-2xl p-3 mt-4 text-xs">
+          <div class="flex flex-col items-center">
+            <span id="kpiUnpaid" class="font-bold">0</span>
+            <span class="text-gray-300">Unpaid</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span id="kpiOwedToMe" class="font-bold">$0.00</span>
+            <span class="text-gray-300">Others owe me</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span id="kpiIOwe" class="font-bold">$0.00</span>
+            <span class="text-gray-300">I owe</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="px-6 mt-4">
+        <div class="flex bg-gray-700 rounded-xl overflow-hidden text-sm">
+          <button data-tab="mine" class="tab-btn flex-1 py-2 text-gray-300">My Expenses</button>
+          <button data-tab="others" class="tab-btn flex-1 py-2 bg-gray-900 font-medium">Others' Expenses</button>
+          <button data-tab="groups" class="tab-btn flex-1 py-2 text-gray-300">Groups</button>
+          <button data-tab="profile" class="tab-btn flex-1 py-2 text-gray-300">Profile</button>
+        </div>
+      </div>
+
+      <!-- Dynamic toolbar + content -->
+      <div id="toolbar" class="px-6 mt-3"></div>
+      <div id="content" class="px-6 mt-2 space-y-3 overflow-y-auto pb-28" style="height: 475px"></div>
+
+      <!-- Bottom nav -->
+      <div class="absolute bottom-0 inset-x-0 p-4">
+        <div class="glass rounded-2xl p-3 flex justify-around items-center text-2xl">
+          <button id="btnHome" class="tap" title="Home">🏠</button>
+          <button id="btnAdd" class="tap bg-orange-500 text-white px-5 py-2 rounded-full mt-2 shadow-xl">＋</button>
+          <button id="btnGroups" class="tap" title="Groups">👥</button>
+        </div>
+      </div>
+
+      <!-- Toast -->
+      <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-28 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm shadow-xl">Saved ✅</div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Expense Modal -->
+  <div id="modalAdd" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 id="addTitle" class="text-lg font-semibold">Add Expense</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="exName" class="col-span-2 bg-gray-700 rounded-xl px-3 py-2" placeholder="What for?"/>
+        <div class="flex gap-2">
+          <input id="exAmount" type="number" step="0.01" class="bg-gray-700 rounded-xl px-3 py-2 flex-1" placeholder="Amount"/>
+          <select id="exCurrency" class="bg-gray-700 rounded-xl px-2 py-2 text-xs">
+            <option value="USD">USD</option>
+            <option value="CAD">CAD</option>
+            <option value="EUR">EUR</option>
+            <option value="INR">INR</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
+        <input id="exDate" type="date" class="bg-gray-700 rounded-xl px-3 py-2"/>
+        <select id="exGroup" class="bg-gray-700 rounded-xl px-3 py-2"></select>
+        <select id="exPayer" class="bg-gray-700 rounded-xl px-3 py-2"></select>
+        <select id="exCategory" class="bg-gray-700 rounded-xl px-3 py-2">
+          <option>Food</option><option>Rent</option><option>Utilities</option>
+          <option>Transport</option><option>Shopping</option><option>Travel</option>
+        </select>
+
+        <!-- FX -->
+        <label id="fxWrap" class="text-[11px] text-gray-300 col-span-2 hidden">
+          FX rate (1 <span id="fxCurFrom"></span> in <span id="fxCurTo"></span>)
+          <input id="exFxRate" type="number" step="0.0001" class="w-full bg-gray-700 rounded-xl px-3 py-1 mt-1" placeholder="e.g. 1.47">
+        </label>
+
+        <!-- Split mode -->
+        <label class="flex items-center gap-2 text-sm col-span-2">
+          <input id="exEqual" type="checkbox" checked> Split equally
+        </label>
+        <div id="customSplitWrap" class="col-span-2 hidden">
+          <div class="text-xs text-gray-300 mb-1">Custom split per member</div>
+          <div id="customSplit" class="space-y-2"></div>
+        </div>
+
+        <!-- Receipt area -->
+        <div class="col-span-2 grid grid-cols-2 gap-2">
+          <!-- Paste text -->
+          <div class="bg-gray-700 rounded-xl p-2">
+            <div class="text-xs text-gray-300 mb-1">Paste receipt text</div>
+            <textarea id="exReceipt" rows="3" class="w-full bg-gray-800 rounded-lg p-2 text-sm" placeholder="Paste receipt text to auto-detect amount"></textarea>
+            <button id="btnParseReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600">Parse</button>
+          </div>
+
+          <!-- Scan image/camera -->
+          <div class="bg-gray-700 rounded-xl p-2">
+            <div class="text-xs text-gray-300 mb-1">Scan receipt</div>
+
+            <!-- Upload from gallery -->
+            <input id="exReceiptImg" type="file" accept="image/*" class="w-full text-xs bg-gray-800 rounded-lg p-2"/>
+            <button id="btnScanReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600">
+              Scan from image
+            </button>
+
+            <!-- Or use camera -->
+            <button id="btnCameraReceipt" class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600 w-full">
+              📸 Use camera
+            </button>
+            <video id="receiptVideo"
+                   class="mt-2 w-full rounded-lg hidden"
+                   autoplay
+                   playsinline></video>
+            <button id="btnCaptureReceipt"
+                    class="mt-2 text-xs px-3 py-1 rounded bg-gray-800 border border-gray-600 w-full hidden">
+              Capture & scan
+            </button>
+
+            <div id="receiptSummary" class="mt-2 text-[11px] text-gray-300 hidden"></div>
+          </div>
+        </div>
+
+        <!-- Due + note -->
+        <div class="col-span-2 grid grid-cols-2 gap-2 mt-1">
+          <label class="text-xs text-gray-300">Due in days
+            <input id="exDueDays" type="number" min="0" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="optional">
+          </label>
+          <label class="text-xs text-gray-300">Note
+            <input id="exNote" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="optional">
+          </label>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex justify-between items-center pt-1">
+        <label class="flex items-center gap-2 text-sm"><input id="exReminder" type="checkbox"> Smart reminder</label>
+        <div class="space-x-2">
+          <button class="modal-close px-3 py-1 rounded bg-gray-700">Cancel</button>
+          <button id="btnSaveEx" class="px-3 py-1 rounded bg-orange-500">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Group Modal -->
+  <div id="modalGroup" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">New Group</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <input id="grpName" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="Group name"/>
+      <div>
+        <div class="text-xs text-gray-300 mb-1">Type</div>
+        <select id="grpType" class="w-full bg-gray-700 rounded-xl px-3 py-2 text-sm mb-2">
+          <option value="Regular">Regular</option>
+          <option value="Trip">Trip</option>
+          <option value="Event">Event</option>
+        </select>
+        <div class="text-xs text-gray-300 mb-1">Members</div>
+        <div id="grpMembers" class="grid grid-cols-2 gap-2"></div>
+        <button id="btnAddMember" class="mt-2 text-xs px-2 py-1 rounded bg-gray-700">+ Add member</button>
+      </div>
+      <div class="flex justify-between items-center">
+        <button class="modal-close px-3 py-1 rounded bg-gray-700">Cancel</button>
+        <button id="btnSaveGroup" class="px-3 py-1 rounded bg-orange-500">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="modalSettings" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Settings & Privacy</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <div class="space-y-3">
+        <label class="flex items-center justify-between">Dark Mode
+          <input id="setDark" type="checkbox" class="scale-125" checked>
+        </label>
+        <div class="border-t border-gray-700 pt-3">
+          <div class="font-medium mb-2">Privacy Lock</div>
+          <div class="grid grid-cols-2 gap-2">
+            <input id="setPIN" maxlength="6" class="bg-gray-700 rounded-xl px-3 py-2" placeholder="Set 4–6 digit PIN">
+            <button id="btnSavePIN" class="bg-gray-700 rounded-xl">Save PIN</button>
+          </div>
+          <button id="btnLockNow" class="mt-2 text-xs px-2 py-1 rounded bg-gray-700">Lock App Now</button>
+        </div>
+        <div class="border-t border-gray-700 pt-3">
+          <div class="font-medium mb-2">Data</div>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btnExport" class="bg-gray-700 rounded-xl px-3 py-2">Export JSON</button>
+            <label class="bg-gray-700 rounded-xl px-3 py-2 text-center cursor-pointer">
+              Import JSON
+              <input id="fileImport" type="file" class="hidden" accept="application/json">
+            </label>
+          </div>
+          <button id="btnDemo" class="mt-2 text-xs px-2 py-1 rounded bg-gray-700">Load Demo Dataset</button>
+          <button id="btnReset" class="mt-2 text-xs px-2 py-1 rounded bg-red-600">Factory Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lock Screen -->
+  <div id="lockScreen" class="hidden fixed inset-0 z-[60] bg-gray-900 flex flex-col items-center justify-center p-6">
+    <div class="text-5xl mb-4">🔒</div>
+    <div class="text-xl font-semibold mb-2">App Locked</div>
+    <input id="pinInput" class="bg-gray-800 rounded-xl px-4 py-3 tracking-widest text-center text-2xl w-56" placeholder="••••" maxlength="6"/>
+    <button id="btnUnlock" class="mt-3 bg-orange-500 px-4 py-2 rounded-xl">Unlock</button>
+    <div id="pinMsg" class="text-sm text-red-400 mt-2"></div>
+  </div>
+
+  <!-- Group View -->
+  <div id="modalGroupView" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 id="gvTitle" class="text-lg font-semibold">Group</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <div id="gvMembers" class="text-sm text-gray-300"></div>
+      <div id="gvTrip" class="text-xs text-gray-300 space-y-1"></div>
+      <div class="border-t border-gray-700"></div>
+      <div id="gvBalances" class="space-y-2 text-sm"></div>
+      <div class="border-t border-gray-700"></div>
+      <div id="gvMeta" class="space-y-2 text-xs text-gray-300"></div>
+      <div class="border-t border-gray-700"></div>
+      <div id="gvTx" class="space-y-2 text-xs text-gray-300"></div>
+      <div class="space-y-2 mt-2">
+        <button id="btnSimplify" class="w-full bg-gray-700 rounded-xl px-3 py-2">🔁 Simplify Debts</button>
+        <button id="btnSettleAll" class="w-full bg-orange-500 rounded-xl px-3 py-2">✅ Settle Up</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics -->
+  <div id="modalAnalytics" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Spending Insights</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <canvas id="chartMonthly" height="160"></canvas>
+      <div id="insights" class="text-sm text-gray-300"></div>
+    </div>
+  </div>
+
+  <!-- Notifications -->
+  <div id="modalNotifications" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Reminders & Notifications</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+      <div id="notifList" class="text-sm text-gray-300 space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div id="modalPayment" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-md rounded-2xl p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Make a Payment</h2>
+        <button class="modal-close text-2xl">✕</button>
+      </div>
+
+      <div class="bg-gray-700 rounded-xl p-3 text-sm">
+        <div class="flex justify-between"><span>Paying for</span><span id="payName" class="font-medium"></span></div>
+        <div class="flex justify-between"><span>Group</span><span id="payGroup" class="text-gray-300"></span></div>
+        <div class="flex justify-between"><span>Your share</span><span id="payAmount" class="font-semibold"></span></div>
+        <div id="payNoteWrap" class="mt-1 text-xs text-gray-300 hidden"></div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="text-sm font-medium">Payment method</div>
+        <div class="grid grid-cols-3 gap-2 text-sm">
+          <button data-method="card" class="pm-btn bg-gray-700 rounded-xl px-3 py-2 font-medium">💳 Card</button>
+          <button data-method="apple" class="pm-btn bg-gray-700 rounded-xl px-3 py-2"> Pay</button>
+          <button data-method="gpay" class="pm-btn bg-gray-700 rounded-xl px-3 py-2">GPay</button>
+        </div>
+      </div>
+
+      <div id="cardFields" class="space-y-2">
+        <input id="pmName" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="Full name on card" />
+        <input id="pmEmail" type="email" class="w-full bg-gray-700 rounded-xl px-3 py-2" placeholder="Email for receipt" />
+        <div class="bg-gray-700 rounded-xl px-3 py-2">
+          <div class="text-xs text-gray-300 mb-1">Card details</div>
+          <input id="pmCard" class="w-full bg-gray-800 rounded-lg px-3 py-2 tracking-widest" placeholder="4242 4242 4242 4242" />
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <input id="pmExp" class="bg-gray-800 rounded-lg px-3 py-2" placeholder="MM/YY" />
+            <input id="pmCvc" class="bg-gray-800 rounded-lg px-3 py-2" placeholder="CVC" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <div id="pmMsg" class="text-sm text-red-400"></div>
+        <div class="space-x-2">
+          <button class="modal-close px-3 py-2 rounded bg-gray-700">Cancel</button>
+          <button id="btnPayNow" class="px-4 py-2 rounded bg-orange-500 font-medium">Pay now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ <script>
+
+/* ==== Guest-mode helpers (full checkout fields) ==== */
+let GUEST_MODE = false;
+
+/* Optional: wire these to your backend later */
+const BACKEND_GUEST_CHECKOUT_URL = "/api/guest/checkout"; // implement server
+const GUEST_PAYMENT_LINK = ""; // leave "" to use backend; set to hosted checkout to redirect
+
+/* ——— utils ——— */
+function b64urlEncode(json) {
+  const s = typeof json === 'string' ? json : JSON.stringify(json);
+  const b64 = btoa(unescape(encodeURIComponent(s)));
+  return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64urlDecodeToJSON(s) {
+  try {
+    const b64 = s.replace(/-/g,'+').replace(/_/g,'/');
+    const txt = decodeURIComponent(escape(atob(b64)));
+    return JSON.parse(txt);
+  } catch { return null; }
+}
+function readGuestPayload() {
+  const m = (location.hash||'').match(/#guest=([^&]+)/);
+  return m ? b64urlDecodeToJSON(m[1]) : null;
+}
+function numberFromMoney(str){
+  if (typeof str === 'number') return str;
+  const n = parseFloat((str||'').toString().replace(/[^0-9.]/g,''));
+  return isNaN(n) ? 0 : n;
+}
+function fmtMoney(n, curSymbol="$"){ return `${curSymbol}${(+n||0).toFixed(2)}`; }
+
+/* ——— guest page renderer ——— */
+function renderGuestPage(payload) {
+  GUEST_MODE = true;
+  const isExpense = payload?.kind === 'expense';
+  const data = payload?.data || {};
+  const shares = (data.shares || []).map(s => ({
+    name: s.name,
+    amountFmt: s.amountFmt || s.amount || '',
+    amountNum: (typeof s.amountNum === 'number') ? s.amountNum : numberFromMoney(s.amount)
+  }));
+
+  const payer = data.payer || '—';
+  const payableOptions = shares.filter(s => s.name !== payer && s.amountNum > 0);
+  const me = payableOptions[0]?.name || '';
+
+  const root = `
+  <div class="min-h-screen bg-gray-900 text-white p-5 font-[Inter]">
+    <div class="max-w-md mx-auto">
+      <div class="text-center mb-5">
+        <div class="text-2xl font-extrabold tracking-wide">CASHMEUP</div>
+        <div class="text-sm text-gray-400 mt-1">Guest view</div>
+      </div>
+
+      <div class="bg-gray-800 rounded-2xl p-4 space-y-3">
+        ${isExpense ? (`
+          <div class="text-sm text-gray-300">Shared expense</div>
+          <div class="text-xl font-semibold">${data.name || 'Expense'}</div>
+          <div class="text-sm text-gray-300">Date: ${data.date || '—'}</div>
+          <div class="text-sm text-gray-300">Group: ${data.groupName || '—'}</div>
+          <div class="text-sm text-gray-300">Payer: ${payer}</div>
+          <div class="border-t border-gray-700 pt-3"></div>
+          <div class="text-sm">Total: <b>${data.amount || '—'}</b></div>
+          <div class="bg-gray-900 rounded-xl p-3 text-sm">
+            ${shares.map(s => `<div class="flex justify-between"><span>${s.name}</span><span>${s.amountFmt}</span></div>`).join('')}
+          </div>
+
+          <div class="border-t border-gray-700 pt-3"></div>
+          <div class="space-y-2">
+            <div class="text-sm font-medium">Pay now</div>
+
+            <!-- Who + contact -->
+            <div class="grid grid-cols-1 gap-2">
+              <label class="text-xs text-gray-300">
+                Who are you?
+                <select id="guestWho" class="w-full bg-gray-900 rounded-xl px-3 py-2 mt-1">
+                  ${payableOptions.map(o => `<option ${o.name===me?'selected':''} value="${o.name}">${o.name}</option>`).join('')}
+                </select>
+              </label>
+              <label class="text-xs text-gray-300">
+                Your email (for receipt)
+                <input id="guestEmail" type="email" class="w-full bg-gray-900 rounded-xl px-3 py-2 mt-1" placeholder="you@example.com">
+              </label>
+              <div class="flex items-center justify-between text-sm">
+                <div>Amount</div>
+                <div id="guestAmount" class="font-semibold">${payableOptions[0]?.amountFmt || '—'}</div>
+              </div>
+            </div>
+
+            <!-- Method tabs -->
+            <div class="grid grid-cols-3 gap-2 text-sm mt-2">
+              <button data-m="card"  class="pmTab bg-gray-700 rounded-xl px-3 py-2 font-medium">💳 Card</button>
+              <button data-m="bank"  class="pmTab bg-gray-700 rounded-xl px-3 py-2">🏦 Bank (ACH)</button>
+              <button data-m="paypal" class="pmTab bg-gray-700 rounded-xl px-3 py-2">🅿️ PayPal</button>
+            </div>
+
+            <!-- Fields: CARD -->
+            <div id="sec-card" class="bg-gray-900 rounded-xl p-3 mt-1 space-y-2">
+              <label class="text-xs text-gray-300">Name on card
+                <input id="cardName" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="Full name">
+              </label>
+              <label class="text-xs text-gray-300">Card number
+                <input id="cardNumber" inputmode="numeric" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="4242 4242 4242 4242">
+              </label>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="text-xs text-gray-300">Expiry (MM/YY)
+                  <input id="cardExp" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="MM/YY">
+                </label>
+                <label class="text-xs text-gray-300">CVC
+                  <input id="cardCvc" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="CVC">
+                </label>
+              </div>
+              <label class="text-xs text-gray-300">Postal/ZIP
+                <input id="cardZip" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="12345">
+              </label>
+            </div>
+
+            <!-- Fields: BANK -->
+            <div id="sec-bank" class="bg-gray-900 rounded-xl p-3 mt-1 space-y-2 hidden">
+              <div class="text-xs text-gray-400 mb-1">US bank details (ACH). Funds may take 3–5 business days.</div>
+              <label class="text-xs text-gray-300">Account holder name
+                <input id="bankName" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="Full name or business">
+              </label>
+              <label class="text-xs text-gray-300">Account type
+                <select id="bankType" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1">
+                  <option value="checking">Checking</option>
+                  <option value="savings">Savings</option>
+                </select>
+              </label>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="text-xs text-gray-300">Routing number
+                  <input id="bankRouting" inputmode="numeric" maxlength="9" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="9 digits">
+                </label>
+                <label class="text-xs text-gray-300">Account number
+                  <input id="bankAccount" inputmode="numeric" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="••••••••">
+                </label>
+              </div>
+              <label class="text-xs text-gray-300">Confirm account number
+                <input id="bankAccount2" inputmode="numeric" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="Re-enter account number">
+              </label>
+              <label class="flex items-center gap-2 text-xs text-gray-300 mt-1">
+                <input id="bankAuth" type="checkbox"> I authorize a one-time ACH debit for the amount shown.
+              </label>
+            </div>
+
+            <!-- Fields: PAYPAL -->
+            <div id="sec-paypal" class="bg-gray-900 rounded-xl p-3 mt-1 space-y-2 hidden">
+              <label class="text-xs text-gray-300">PayPal email
+                <input id="ppEmail" type="email" class="w-full bg-gray-800 rounded-xl px-3 py-2 mt-1" placeholder="your-paypal@email.com">
+              </label>
+              <div class="text-[11px] text-gray-400">You’ll be redirected to approve the payment in PayPal.</div>
+            </div>
+
+            <!-- Optional: Billing Address -->
+            <details class="bg-gray-900 rounded-xl p-3 mt-1 text-xs">
+              <summary class="cursor-pointer text-gray-200">Billing address (optional)</summary>
+              <div class="grid grid-cols-1 gap-2 mt-2">
+                <input id="billLine1" class="bg-gray-800 rounded-xl px-3 py-2" placeholder="Address line 1">
+                <input id="billLine2" class="bg-gray-800 rounded-xl px-3 py-2" placeholder="Address line 2 (optional)">
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="billCity" class="bg-gray-800 rounded-xl px-3 py-2" placeholder="City">
+                  <input id="billState" class="bg-gray-800 rounded-xl px-3 py-2" placeholder="State/Province">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="billZip" class="bg-gray-800 rounded-xl px-3 py-2" placeholder="Postal/ZIP">
+                  <input id="billCountry" class="bg-gray-800 rounded-xl px-3 py-2" placeholder="Country (e.g., US, CA)">
+                </div>
+              </div>
+            </details>
+
+            <!-- Submit -->
+            <div class="flex items-center justify-between mt-1">
+              <div id="guestMsg" class="text-xs text-red-400"></div>
+              <button id="guestPayNow" class="bg-orange-500 rounded-xl px-4 py-2 font-medium">Pay now</button>
+            </div>
+            <div class="text-[11px] text-gray-500">
+              This guest link is read-only for your group data. Payment details are used only to process this transaction.
+            </div>
+          </div>
+        `) : `<div class="text-sm text-gray-400">No guest data found.</div>`}
+      </div>
+
+      <div class="text-center text-xs text-gray-500 mt-4">Read-only preview</div>
+    </div>
+  </div>`;
+
+  document.body.innerHTML = root;
+
+  // init handlers
+  if (isExpense) setupGuestCheckout(data, payableOptions);
+}
+
+/* ——— tab + submit logic ——— */
+function setupGuestCheckout(expenseData, payableOptions){
+  const whoSel = document.getElementById('guestWho');
+  const amtEl  = document.getElementById('guestAmount');
+  const emailEl= document.getElementById('guestEmail');
+  const msgEl  = document.getElementById('guestMsg');
+  const btn    = document.getElementById('guestPayNow');
+  const tabs   = document.querySelectorAll('.pmTab');
+  let method   = 'card';
+
+  // preselect via ?for=
+  const q = new URLSearchParams(location.search);
+  const pre = q.get('for');
+  if (pre && payableOptions.some(x => x.name === pre)) whoSel.value = pre;
+
+  function findSelected(){
+    const who = whoSel.value;
+    const entry = payableOptions.find(x => x.name === who) || payableOptions[0];
+    return entry || {name: who, amountNum: 0, amountFmt: '—'};
+  }
+  function refreshAmount(){ amtEl.textContent = findSelected().amountFmt; }
+  whoSel.addEventListener('change', refreshAmount);
+  refreshAmount();
+
+  function showSection(m){
+    ['card','bank','paypal'].forEach(id=>{
+      document.getElementById('sec-'+id).classList.toggle('hidden', id!==m);
+    });
+    tabs.forEach(b=> b.classList.toggle('bg-gray-900', b.dataset.m===m));
+    method = m;
+  }
+  tabs.forEach(b => b.addEventListener('click', ()=> showSection(b.dataset.m)));
+  showSection('card');
+
+  function fail(s){ msgEl.textContent = s; return false; }
+  function ok(){ msgEl.textContent = ''; return true; }
+
+  function collectBilling(){
+    return {
+      line1: (document.getElementById('billLine1')||{}).value||'',
+      line2: (document.getElementById('billLine2')||{}).value||'',
+      city:  (document.getElementById('billCity') ||{}).value||'',
+      state: (document.getElementById('billState')||{}).value||'',
+      zip:   (document.getElementById('billZip')  ||{}).value||'',
+      country:(document.getElementById('billCountry')||{}).value||'',
+    };
+  }
+
+  function validateAndBuildPayload(){
+    const who = whoSel.value;
+    const ent = findSelected();
+    const email = (emailEl.value||'').trim();
+    if (!who) return fail('Select who you are.');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('Enter a valid email.');
+
+    const base = {
+      kind: 'expense',
+      expense: {
+        title: expenseData.name || 'Expense',
+        group: expenseData.groupName || '',
+        payer: expenseData.payer || '',
+      },
+      customer: { name: who, email, billing: collectBilling() },
+      amount_cents: Math.round((ent.amountNum||0)*100),
+      currency: (expenseData.currency || 'USD'),
+      method
+    };
+
+    if (method === 'card') {
+      const name = (document.getElementById('cardName')||{}).value?.trim();
+      const num  = (document.getElementById('cardNumber')||{}).value?.replace(/\s+/g,'');
+      const exp  = (document.getElementById('cardExp')||{}).value?.trim();
+      const cvc  = (document.getElementById('cardCvc')||{}).value?.trim();
+      const zip  = (document.getElementById('cardZip')||{}).value?.trim();
+      if(!name) return fail('Name on card required.');
+      if(!/^\d{13,19}$/.test(num||'')) return fail('Card number looks off.');
+      if(!/^\d{2}\/\d{2}$/.test(exp||'')) return fail('Expiry format MM/YY.');
+      if(!/^\d{3,4}$/.test(cvc||'')) return fail('CVC looks off.');
+      if(!zip) return fail('Postal/ZIP required.');
+      base.card = { name, number:num, exp, cvc, zip };
+    } else if (method === 'bank') {
+      const holder = (document.getElementById('bankName')||{}).value?.trim();
+      const type   = (document.getElementById('bankType')||{}).value||'checking';
+      const rt     = (document.getElementById('bankRouting')||{}).value?.trim();
+      const acc    = (document.getElementById('bankAccount')||{}).value?.trim();
+      const acc2   = (document.getElementById('bankAccount2')||{}).value?.trim();
+      const auth   = (document.getElementById('bankAuth')||{}).checked;
+      if(!holder) return fail('Account holder name required.');
+      if(!/^\d{9}$/.test(rt||'')) return fail('Routing number must be 9 digits.');
+      if(!acc || !acc2 || acc!==acc2) return fail('Account numbers must match.');
+      if(!auth) return fail('You must authorize the ACH debit.');
+      base.bank = { holder, type, routing: rt, account: acc };
+    } else if (method === 'paypal') {
+      const pp = (document.getElementById('ppEmail')||{}).value?.trim();
+      if(!pp || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pp)) return fail('Enter a valid PayPal email.');
+      base.paypal = { email: pp };
+    }
+    ok();
+    return base;
+  }
+
+  btn.addEventListener('click', async ()=>{
+    const payload = validateAndBuildPayload();
+    if (!payload) return;
+
+    // If you prefer hosted checkout, redirect there with query params.
+    if (GUEST_PAYMENT_LINK) {
+      const p = new URLSearchParams({
+        amount_cents: String(payload.amount_cents),
+        note: `${expenseData.name||'Expense'} - ${payload.customer.name}`,
+        email: payload.customer.email,
+        method: payload.method
+      });
+      window.location.href = `${GUEST_PAYMENT_LINK}?${p.toString()}`;
+      return;
+    }
+
+    // Otherwise: POST to your server to create Stripe/PayPal payment intent/session.
+    btn.disabled = true; btn.textContent = 'Processing...'; msgEl.textContent = '';
+    try{
+      const r = await fetch(BACKEND_GUEST_CHECKOUT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) throw new Error('Checkout failed');
+      const res = await r.json();
+
+      // Server contract:
+      // { ok: true, next: { redirect_url?: string, status?: "captured"|"processing" } }
+      if (res.next?.redirect_url) {
+        window.location.href = res.next.redirect_url; // e.g., Stripe Checkout / PayPal approval
+        return;
+      }
+      if (res.ok && res.next?.status) {
+        btn.textContent = 'Paid ✅';
+        alert(`Thanks! Your payment is ${res.next.status}.`);
+      } else {
+        throw new Error(res.error || 'Unknown error');
+      }
+    } catch(e){
+      console.error(e);
+      msgEl.textContent = 'Could not complete payment. Please try again.';
+      btn.disabled = false; btn.textContent = 'Pay now';
+    }
+  });
+}
+
+/* ——— optional: richer share link in your app code ———
+function shareExpenseLink(e) {
+  const g = db.groups.find(x => x.id === e.gId);
+  const shares = Object.entries(e.split||{}).map(([name, amt]) => ({
+    name, amountFmt: fmt(amt), amountNum: +amt
+  }));
+  const payload = {
+    v:1, kind:'expense',
+    data:{
+      name:e.name||'Expense',
+      date:(e.date||'').slice(0,10),
+      groupName:g?.name||'—',
+      payer:e.payer||'—',
+      amount: fmt(e.amount||0),
+      currency: (db.profile?.currency || 'USD'),
+      shares
+    }
+  };
+  const link = location.origin + location.pathname + '#guest=' + b64urlEncode(payload);
+  navigator.clipboard.writeText(link);
+  showToast('Guest link copied');
+}
+——————————————————————————————— */
+
+/* ——— boot guest mode if hash present ——— */
+(function maybeHandleGuestMode(){
+  const p = readGuestPayload();
+  if (p) { renderGuestPage(p); }
+})();
+/* ==== end guest helpers ==== */
+
+
+/* ===================== FULL APP (DISABLED IN GUEST MODE) ===================== */
+if (!GUEST_MODE) {
+
+  // ===== Payment state + handlers =====
+  let payingExpenseId = null;
+  const modalPayment = document.getElementById('modalPayment');
+
+  function openPayment(expenseId){
+    payingExpenseId = expenseId;
+    const e = db.expenses.find(x=>x.id===expenseId);
+    if(!e){ return; }
+    const g = db.groups.find(x=>x.id===e.gId);
+    const myShare = e.split[currentUser()] || 0;
+
+    document.getElementById('payName').textContent = e.name || 'Expense';
+    document.getElementById('payGroup').textContent = g?.name || '—';
+    document.getElementById('payAmount').textContent = fmt(myShare);
+    const noteWrap = document.getElementById('payNoteWrap');
+    if(e.note){ noteWrap.classList.remove('hidden'); noteWrap.textContent = 'Note: ' + e.note; }
+    else { noteWrap.classList.add('hidden'); }
+
+    selectPm('card');
+    document.getElementById('pmMsg').textContent = '';
+    document.getElementById('pmName').value = currentUser();
+    document.getElementById('pmEmail').value = '';
+    document.getElementById('pmCard').value = '4242 4242 4242 4242';
+    document.getElementById('pmExp').value = '12/30';
+    document.getElementById('pmCvc').value = '123';
+
+    modalPayment.classList.remove('hidden');
+    modalPayment.classList.add('flex');
+  }
+
+  const pmButtons = modalPayment.querySelectorAll('.pm-btn');
+  pmButtons.forEach(b => b.addEventListener('click', () => selectPm(b.dataset.method)));
+  function selectPm(method){
+    pmButtons.forEach(b => b.classList.toggle('bg-gray-900', b.dataset.method === method));
+    document.getElementById('cardFields').classList.toggle('hidden', method !== 'card');
+    modalPayment.dataset.method = method;
+  }
+
+  function validatePayment(){
+    const method = modalPayment.dataset.method || 'card';
+    const fail = (m)=>{ document.getElementById('pmMsg').textContent = m; return false; };
+    if(method === 'card'){
+      const name = document.getElementById('pmName').value.trim();
+      const email = document.getElementById('pmEmail').value.trim();
+      const card = document.getElementById('pmCard').value.replace(/\s+/g,'');
+      const exp  = document.getElementById('pmExp').value.trim();
+      const cvc  = document.getElementById('pmCvc').value.trim();
+      if(!name) return fail('Enter name');
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('Enter a valid email');
+      if(!/^\d{13,19}$/.test(card)) return fail('Card number looks off');
+      if(!/^\d{2}\/\d{2}$/.test(exp)) return fail('Expiry format MM/YY');
+      if(!/^\d{3,4}$/.test(cvc)) return fail('CVC looks off');
+    }
+    return true;
+  }
+
+  document.getElementById('btnPayNow').addEventListener('click', ()=>{
+    if(!validatePayment()) return;
+    const e = db.expenses.find(x=>x.id===payingExpenseId);
+    if(!e){ return; }
+    if(e.status !== 'paid'){
+      e.status = 'paid';
+      e.settledAt = Date.now();
+    }
+    store.save(db);
+    closeAllModals();
+    render();
+    showToast('Payment successful ✅');
+  });
+
+  // ===== App state, storage, OCR config =====
+  const OCR_ENDPOINT = ""; // put your backend OCR endpoint here
+  const OCR_KEY = "";      // optional key if your backend needs it
+
+  // DEMO MODE FLAG + FAKE OCR
+  const DEMO_MODE = true;
+
+  function fakeOcrDemoResult(source){
+    const today = new Date().toISOString().slice(0,10);
+    if(source === 'camera'){
+      return {
+        total: 24.90,
+        date: today,
+        category: 'Food',
+        title: 'Late Night Pizza Receipt'
+      };
+    }
+    return {
+      total: 47.35,
+      date: today,
+      category: 'Shopping',
+      title: 'Walmart Groceries Receipt'
+    };
+  }
+
+  const store = {
+    key: 'cashmeup_v2',
+    load(){
+      const raw = localStorage.getItem(this.key);
+      if(!raw){
+        const seed = {
+          users: ['Divyansh','Mustafa','Minjun','Rafsaan'],
+          profile: {
+            name: 'Divyansh',
+            currency: 'USD',
+            avatar: '',
+            budgets: {
+              Food: 300,
+              Rent: 800,
+              Utilities: 150,
+              Transport: 120,
+              Shopping: 200,
+              Travel: 400
+            }
+          },
+          groups: [{ id: uid(), name: 'Roommates', type:'Regular', members:['Divyansh','Mustafa','Minjun'] }],
+          expenses: [],
+          settings: { dark:true, pin:"", seenIntro:false }
+        };
+        localStorage.setItem(this.key, JSON.stringify(seed));
+        return seed;
+      }
+      let data;
+      try { data = JSON.parse(raw); }
+      catch {
+        data = {
+          users:[],
+          groups:[],
+          expenses:[],
+          settings:{dark:true,pin:"",seenIntro:false},
+          profile:{name:'User',currency:'USD',avatar:'', budgets:{
+            Food:300,Rent:800,Utilities:150,Transport:120,Shopping:200,Travel:400
+          }}
+        };
+      }
+      if(!data.profile) data.profile = {name:'User',currency:'USD',avatar:''};
+      if(!data.profile.currency) data.profile.currency = 'USD';
+      if(!data.profile.budgets){
+        data.profile.budgets = {
+          Food:300,Rent:800,Utilities:150,Transport:120,Shopping:200,Travel:400
+        };
+      }
+      if(!Array.isArray(data.users)) data.users = [];
+      if(!Array.isArray(data.groups)) data.groups = [];
+      data.groups.forEach(g=>{
+        if(!g.members) g.members = [];
+        if(!g.type) g.type = 'Regular';
+      });
+      if(!Array.isArray(data.expenses)) data.expenses = [];
+      if(!data.settings) data.settings = {dark:true,pin:"",seenIntro:false};
+      if(typeof data.settings.dark === 'undefined') data.settings.dark = true;
+      if(typeof data.settings.seenIntro === 'undefined') data.settings.seenIntro = false;
+      return data;
+    },
+    save(data){ localStorage.setItem(this.key, JSON.stringify(data)); }
+  }
+  let db = store.load();
+
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+  function baseCurrency(){ return db.profile?.currency || 'USD'; }
+  function fmt(n){
+    const v = (+n||0);
+    const cur = baseCurrency();
+    return cur === 'USD' ? ('$' + v.toFixed(2)) : (v.toFixed(2) + ' ' + cur);
+  }
+
+  const content = document.getElementById('content');
+  const toolbar = document.getElementById('toolbar');
+  const toast = document.getElementById('toast');
+  function showToast(msg='Saved ✅'){
+    toast.textContent = msg;
+    toast.classList.remove('hidden');
+    setTimeout(()=>toast.classList.add('hidden'), 1200);
+  }
+
+  function closeAllModals(){
+    document.querySelectorAll('.fixed.inset-0.z-50').forEach(m=>m.classList.add('hidden'));
+    if(typeof stopReceiptCamera === 'function') stopReceiptCamera();
+  }
+  document.querySelectorAll('.modal-close').forEach(b=> b.addEventListener('click', closeAllModals));
+
+  // Tabs
+  const tabs = document.querySelectorAll('.tab-btn');
+  let currentTab = 'others'; // open others first so "Pay now" is visible
+  tabs.forEach(btn=>btn.addEventListener('click',()=>{
+    currentTab = btn.dataset.tab;
+    tabs.forEach(b=>b.classList.remove('bg-gray-900','font-medium','text-white'));
+    btn.classList.add('bg-gray-900','font-medium');
+    render();
+  }));
+
+  document.getElementById('btnHome').onclick = ()=>{ currentTab='mine'; render(); };
+  document.getElementById('btnGroups').onclick = ()=>{ currentTab='groups'; render(); };
+
+  // Settings / lock
+  const modalSettings = document.getElementById('modalSettings');
+  document.getElementById('btnSettings').onclick = ()=>{
+    refreshSettingsUI();
+    modalSettings.classList.remove('hidden');
+    modalSettings.classList.add('flex');
+  };
+  function refreshSettingsUI(){
+    document.getElementById('setDark').checked = !!db.settings.dark;
+    document.getElementById('setPIN').value = db.settings.pin || '';
+  }
+  document.getElementById('setDark').onchange = (e)=>{
+    db.settings.dark = e.target.checked;
+    store.save(db);
+    document.body.classList.toggle('bg-white', !db.settings.dark);
+  };
+  document.getElementById('btnSavePIN').onclick = ()=>{
+    const v = document.getElementById('setPIN').value.trim();
+    if(v && v.length>=4) {
+      db.settings.pin = v;
+      store.save(db);
+      showToast('PIN saved');
+    }
+  };
+  document.getElementById('btnLockNow').onclick = ()=> lockApp();
+
+  const lockScreen = document.getElementById('lockScreen');
+  function lockApp(){
+    lockScreen.classList.remove('hidden');
+    document.getElementById('pinInput').value='';
+    document.getElementById('pinMsg').textContent='';
+  }
+  document.getElementById('btnUnlock').onclick = ()=>{
+    const v = document.getElementById('pinInput').value.trim();
+    if(v === (db.settings.pin||'')) {
+      lockScreen.classList.add('hidden');
+    } else {
+      document.getElementById('pinMsg').textContent='Incorrect PIN';
+    }
+  }
+
+  // Add/Edit expense modal
+  const modalAdd = document.getElementById('modalAdd');
+  document.getElementById('btnAdd').onclick = ()=>{ openAddExpense(); };
+
+  function openAddExpense(id=null){
+    if(typeof stopReceiptCamera === 'function') stopReceiptCamera();
+    populateAddExpense(id);
+    document.getElementById('addTitle').textContent = id? 'Edit Expense' : 'Add Expense';
+    modalAdd.classList.remove('hidden'); modalAdd.classList.add('flex');
+  }
+
+  function populateAddExpense(id=null){
+    const selGroup = document.getElementById('exGroup');
+    selGroup.innerHTML = db.groups.map(g=>'<option value="'+g.id+'">'+g.name+'</option>').join('');
+    const selPayer = document.getElementById('exPayer');
+    selPayer.innerHTML = db.users.map(u=>'<option>'+u+'</option>').join('');
+    document.getElementById('exDate').valueAsDate = new Date();
+    document.getElementById('exName').value='';
+    document.getElementById('exAmount').value='';
+    document.getElementById('exCategory').value='Food';
+    document.getElementById('exNote').value='';
+    document.getElementById('exDueDays').value='';
+    document.getElementById('exEqual').checked = true;
+    document.getElementById('customSplitWrap').classList.add('hidden');
+    document.getElementById('receiptSummary').classList.add('hidden');
+    document.getElementById('receiptSummary').textContent = '';
+
+    const exCurrency = document.getElementById('exCurrency');
+    exCurrency.value = baseCurrency();
+    document.getElementById('exFxRate').value = '';
+    syncFxVisibility();
+
+    buildCustomSplit();
+    if(id){
+      const e = db.expenses.find(x=>x.id===id);
+      if(e){
+        const baseCur = baseCurrency();
+        const hasOrig = e.origCurrency && e.origCurrency !== baseCur && e.origAmount;
+        document.getElementById('exName').value=e.name;
+        document.getElementById('exAmount').value = hasOrig ? e.origAmount : e.amount;
+        document.getElementById('exDate').value=e.date;
+        document.getElementById('exGroup').value=e.gId; buildCustomSplit();
+        document.getElementById('exPayer').value=e.payer;
+        document.getElementById('exCategory').value=e.category;
+        document.getElementById('exNote').value=e.note||'';
+        if(hasOrig){
+          exCurrency.value = e.origCurrency;
+          document.getElementById('exFxRate').value = e.fxRate || '';
+        } else {
+          exCurrency.value = baseCur;
+          document.getElementById('exFxRate').value = '';
+        }
+        syncFxVisibility();
+
+        document.getElementById('exEqual').checked=false;
+        document.getElementById('customSplitWrap').classList.remove('hidden');
+        Object.entries(e.split).forEach(function(pair){
+          var m = pair[0], v = pair[1];
+          const input = document.querySelector('#customSplit [data-member="'+m+'"]');
+          if(input) input.value = v;
+        });
+      }
+    }
+  }
+
+  document.getElementById('exEqual').onchange = (e)=>{
+    document.getElementById('customSplitWrap').classList.toggle('hidden', e.target.checked);
+  };
+
+  function buildCustomSplit(){
+    const wrap = document.getElementById('customSplit');
+    const gId = document.getElementById('exGroup').value || (db.groups[0]?.id);
+    const grp = db.groups.find(g=>g.id===gId);
+    if(!grp) {
+      wrap.innerHTML = '<div class="text-xs text-red-300">Create a group first.</div>';
+      return;
+    }
+    wrap.innerHTML = grp.members.map(function(m){
+      return '<div class="flex items-center gap-2">' +
+               '<div class="w-28 text-gray-200">'+m+'</div>' +
+               '<input data-member="'+m+'" type="number" step="0.01" class="flex-1 bg-gray-700 rounded-xl px-3 py-1" placeholder="$ amount">' +
+             '</div>';
+    }).join('');
+  }
+  document.getElementById('exGroup').addEventListener('change', buildCustomSplit);
+
+  // FX visibility sync
+  function syncFxVisibility(){
+    const exCurrency = document.getElementById('exCurrency');
+    const wrap = document.getElementById('fxWrap');
+    const fromSpan = document.getElementById('fxCurFrom');
+    const toSpan = document.getElementById('fxCurTo');
+    const cur = exCurrency.value;
+    const base = baseCurrency();
+    if(cur && base && cur !== base){
+      wrap.classList.remove('hidden');
+      fromSpan.textContent = cur;
+      toSpan.textContent = base;
+    } else {
+      wrap.classList.add('hidden');
+    }
+  }
+  document.getElementById('exCurrency').addEventListener('change', syncFxVisibility);
+
+  // ===== Receipt parsing (text) =====
+  document.getElementById('btnParseReceipt').onclick = ()=>{
+    const t = document.getElementById('exReceipt').value;
+    const nums = (t.match(/\d+[\.,]?\d*/g)||[])
+      .map(x => parseFloat(x.replace(',','.')))
+      .filter(n => !isNaN(n));
+    if(nums.length){
+      const total = Math.max.apply(null, nums);
+      document.getElementById('exAmount').value = total.toFixed(2);
+      const summary = document.getElementById('receiptSummary');
+      summary.classList.remove('hidden');
+      summary.textContent = 'Detected total ' + total.toFixed(2) + ' from pasted text.';
+      showToast('Amount detected');
+    } else {
+      showToast('No numbers found');
+    }
+  };
+
+  // Apply OCR / demo result
+  function applyReceiptOcrData(data){
+    const summary = document.getElementById('receiptSummary');
+    let descParts = [];
+    if (data && (data.total || data.amount)) {
+      const total = (+data.total || +data.amount);
+      if (!isNaN(total)) {
+        document.getElementById('exAmount').value = total.toFixed(2);
+        descParts.push('total ' + total.toFixed(2));
+      }
+      if (data.date) {
+        const d = new Date(data.date);
+        if(!isNaN(d)) {
+          document.getElementById('exDate').value = d.toISOString().slice(0, 10);
+          descParts.push('date ' + d.toISOString().slice(0,10));
+        }
+      }
+      if (data.category) {
+        document.getElementById('exCategory').value = data.category;
+        descParts.push('category ' + data.category);
+      }
+      if (data.title) {
+        document.getElementById('exName').value = data.title;
+        descParts.push('title "' + data.title + '"');
+      }
+      if(descParts.length){
+        summary.classList.remove('hidden');
+        summary.textContent = 'Receipt summary: ' + descParts.join(', ') + '. Looks good? You can edit before saving.';
+      }
+      showToast('Receipt scanned');
+    } else {
+      summary.classList.add('hidden');
+      summary.textContent = '';
+      showToast('Scan failed');
+    }
+  }
+
+  // ===== Scan from image (with DEMO_MODE) =====
+  document.getElementById('btnScanReceipt').onclick = async ()=>{
+    if (DEMO_MODE) {
+      showToast('Scanning receipt…');
+      setTimeout(()=>{
+        const data = fakeOcrDemoResult('image');
+        applyReceiptOcrData(data);
+      }, 1200);
+      return;
+    }
+    const f = document.getElementById('exReceiptImg').files?.[0];
+    if(!f){ showToast('No image'); return; }
+    if(!OCR_ENDPOINT){ showToast('Set OCR endpoint'); return; }
+    const fd = new FormData(); fd.append('file', f);
+    if(OCR_KEY) fd.append('key', OCR_KEY);
+    try{
+      const r = await fetch(OCR_ENDPOINT, { method:'POST', body: fd });
+      const data = await r.json();
+      applyReceiptOcrData(data);
+    }catch{
+      showToast('Scan error');
+    }
+  };
+
+  // ===== Camera receipt capture (with DEMO_MODE) =====
+  let receiptCameraStream = null;
+  const receiptVideo = document.getElementById('receiptVideo');
+  const btnCameraReceipt = document.getElementById('btnCameraReceipt');
+  const btnCaptureReceipt = document.getElementById('btnCaptureReceipt');
+
+  function stopReceiptCamera(){
+    if (receiptCameraStream) {
+      receiptCameraStream.getTracks().forEach(t=>t.stop());
+      receiptCameraStream = null;
+    }
+    receiptVideo.srcObject = null;
+    receiptVideo.classList.add('hidden');
+    btnCaptureReceipt.classList.add('hidden');
+  }
+
+  btnCameraReceipt.onclick = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast('Camera not supported');
+      return;
+    }
+    try {
+      receiptCameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      receiptVideo.srcObject = receiptCameraStream;
+      receiptVideo.classList.remove('hidden');
+      btnCaptureReceipt.classList.remove('hidden');
+    } catch (e) {
+      console.error(e);
+      showToast('Cannot access camera');
+    }
+  };
+
+  btnCaptureReceipt.onclick = () => {
+    if (DEMO_MODE) {
+      showToast('Scanning receipt…');
+      setTimeout(()=>{
+        const data = fakeOcrDemoResult('camera');
+        applyReceiptOcrData(data);
+        stopReceiptCamera();
+      }, 1200);
+      return;
+    }
+
+    if (!receiptVideo.videoWidth || !receiptVideo.videoHeight) {
+      showToast('Camera not ready');
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = receiptVideo.videoWidth;
+    canvas.height = receiptVideo.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(receiptVideo, 0, 0);
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        showToast('Capture failed');
+        stopReceiptCamera();
+        return;
+      }
+      if (!OCR_ENDPOINT) {
+        showToast('Set OCR endpoint');
+        stopReceiptCamera();
+        return;
+      }
+      const fd = new FormData();
+      fd.append('file', blob, 'receipt.jpg');
+      if (OCR_KEY) fd.append('key', OCR_KEY);
+
+      try {
+        const r = await fetch(OCR_ENDPOINT, { method:'POST', body: fd });
+        const data = await r.json();
+        applyReceiptOcrData(data);
+      } catch (e) {
+        console.error(e);
+        showToast('Scan error');
+      } finally {
+        stopReceiptCamera();
+      }
+    }, 'image/jpeg', 0.9);
+  };
+
+  // Autofill from history
+  function autoFillFromHistory(){
+    if(db._editingId) return;
+    const input = document.getElementById('exName');
+    const name = (input.value || '').trim().toLowerCase();
+    if(!name) return;
+    const last = db.expenses.slice().reverse().find(e=>{
+      return e.name && e.name.toLowerCase().includes(name);
+    });
+    if(!last) return;
+    document.getElementById('exCategory').value = last.category;
+    document.getElementById('exGroup').value = last.gId;
+    buildCustomSplit();
+    showToast('Using pattern from "'+last.name+'"');
+  }
+  document.getElementById('exName').addEventListener('blur', autoFillFromHistory);
+
+  // ===== Budgets =====
+  function monthlySpendForCategory(cat, dateStr){
+    if(!dateStr) return 0;
+    const monthKey = dateStr.slice(0,7);
+    return db.expenses.filter(function(e){
+      const d = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
+      return e.category === cat && d === monthKey;
+    }).reduce((s,e)=> s + (e.amount||0), 0);
+  }
+
+  function checkBudgetWarning(cat, amount, dateStr){
+    const budgets = db.profile?.budgets;
+    if(!budgets || !budgets[cat]) return;
+    const existing = monthlySpendForCategory(cat, dateStr);
+    const newTotal = existing + amount;
+    if(newTotal > budgets[cat] + 0.01){
+      alert('Budget warning: ' + cat + ' would reach ' + fmt(newTotal) +
+            ' vs limit ' + fmt(budgets[cat]) + ' this month.');
+    }
+  }
+
+  // Save expense
+  document.getElementById('btnSaveEx').onclick = ()=>{
+    const name = document.getElementById('exName').value.trim();
+    const rawAmount = +document.getElementById('exAmount').value;
+    const date = document.getElementById('exDate').value;
+    const gId = document.getElementById('exGroup').value;
+    const payer = document.getElementById('exPayer').value;
+    const cat = document.getElementById('exCategory').value;
+    const note = document.getElementById('exNote').value.trim();
+    const equal = document.getElementById('exEqual').checked;
+    const dueDays = +document.getElementById('exDueDays').value || 0;
+    const withReminder = document.getElementById('exReminder').checked;
+    const currency = document.getElementById('exCurrency').value || baseCurrency();
+    const fxRate = +document.getElementById('exFxRate').value || null;
+
+    if(!name || !rawAmount || !gId){ alert('Please fill name, amount and group'); return; }
+
+    const baseCur = baseCurrency();
+    let amount = rawAmount;
+    let origAmount = null;
+    let origCurrency = null;
+    let rate = null;
+
+    if(currency && currency !== baseCur && fxRate){
+      origAmount = rawAmount;
+      origCurrency = currency;
+      rate = fxRate;
+      amount = rawAmount * fxRate;
+    }
+
+    checkBudgetWarning(cat, amount, date || new Date().toISOString().slice(0,10));
+
+    const group = db.groups.find(g=>g.id===gId);
+    const split = {};
+    if(equal){
+      const share = amount / group.members.length;
+      group.members.forEach(m=> split[m] = +share.toFixed(2));
+    } else {
+      let sum=0;
+      document.querySelectorAll('#customSplit [data-member]').forEach(i=>{
+        sum += (+i.value||0);
+      });
+      if(Math.abs(sum-amount) > 0.01) { alert('Custom split must sum to total'); return; }
+      document.querySelectorAll('#customSplit [data-member]').forEach(i=>{
+        split[i.dataset.member] = +(i.value||0);
+      });
+    }
+
+    const editing = db._editingId || null;
+    if(editing){
+      const e = db.expenses.find(x=>x.id===editing);
+      if(e){
+        Object.assign(e, {
+          name,
+          amount,
+          date,
+          gId,
+          payer,
+          category:cat,
+          note,
+          split,
+          origAmount,
+          origCurrency,
+          fxRate: rate,
+          due: dueDays ? Date.now()+dueDays*864e5 : e.due,
+          remindAt: withReminder ? Date.now()+3*864e5 : e.remindAt
+        });
+      }
+      db._editingId = null;
+      showToast('Expense updated');
+    } else {
+      const now = Date.now();
+      const exp = {
+        id:uid(),
+        name,
+        amount,
+        date,
+        gId,
+        payer,
+        category:cat,
+        note,
+        split,
+        status:'unpaid',
+        created:now,
+        due: dueDays ? now+dueDays*864e5 : null,
+        remindAt: withReminder ? now+3*864e5 : null,
+        origAmount,
+        origCurrency,
+        fxRate: rate,
+        settledAt:null
+      };
+      db.expenses.push(exp);
+      showToast('Expense added');
+    }
+    store.save(db);
+    closeAllModals();
+    render();
+  };
+
+  // ===== Groups =====
+  const modalGroup = document.getElementById('modalGroup');
+  const grpMembers = document.getElementById('grpMembers');
+  document.getElementById('btnGroups').addEventListener('click',()=>{ currentTab='groups'; render(); });
+
+  function renderGroupsScreen(){
+    toolbar.innerHTML = '';
+    content.innerHTML = '';
+    const header = el(
+      '<div class="flex items-center justify-between mb-2">' +
+        '<div class="text-lg font-semibold">Your Groups</div>' +
+        '<div class="space-x-2">' +
+          '<button id="btnNewGroup" class="px-3 py-1 rounded bg-orange-500">+ New</button>' +
+          '<button id="btnOpenAnalytics" class="px-3 py-1 rounded bg-gray-700">📊 Insights</button>' +
+        '</div>' +
+      '</div>'
+    );
+    content.appendChild(header);
+
+    db.groups.forEach(function(g){
+      const total = db.expenses.filter(e=>e.gId===g.id).reduce((s,e)=>s+e.amount,0);
+      const fairness = calcGroupFairness(g.id);
+      let fairnessLine = '';
+      if(Object.keys(fairness).length){
+        let best = null;
+        Object.keys(fairness).forEach(function(m){
+          const f = fairness[m];
+          if(best === null || Math.abs(f.delta) > Math.abs(best.delta)) best = {name:m,delta:f.delta};
+        });
+        if(best){
+          const sign = best.delta>0?'+':'';
+          fairnessLine = ' • '+best.name+' '+sign+best.delta.toFixed(2)+' vs fair';
+        }
+      }
+      const typeLabel = g.type || 'Regular';
+      const card = el(
+        '<div class="bg-gray-700 rounded-2xl p-3 flex items-center justify-between">' +
+          '<div>' +
+            '<div class="text-sm text-gray-300">Group • '+typeLabel+'</div>' +
+            '<div class="text-lg font-semibold">'+g.name+'</div>' +
+            '<div class="text-xs text-gray-300">'+g.members.join(', ')+'</div>' +
+            '<div class="text-xs text-gray-400 mt-1">Total: '+fmt(total)+ fairnessLine +'</div>' +
+          '</div>' +
+          '<div class="space-x-2">' +
+            '<button data-gv="'+g.id+'" class="px-3 py-1 rounded bg-gray-900">View</button>' +
+            '<button data-invite="'+g.id+'" class="px-3 py-1 rounded bg-gray-900">Invite</button>' +
+          '</div>' +
+        '</div>'
+      );
+      content.appendChild(card);
+    });
+
+    document.getElementById('btnNewGroup').onclick = ()=>{
+      buildMemberChips();
+      modalGroup.classList.remove('hidden');
+      modalGroup.classList.add('flex');
+    };
+    document.getElementById('btnOpenAnalytics').onclick = ()=> openAnalytics();
+
+    content.querySelectorAll('[data-gv]').forEach(b=>{
+      b.onclick = ()=> openGroupView(b.getAttribute('data-gv'));
+    });
+    content.querySelectorAll('[data-invite]').forEach(b=>{
+      b.onclick = ()=>{
+        const g = db.groups.find(x=>x.id===b.dataset.invite);
+        const link = location.origin + location.pathname + '?join=' + encodeURIComponent(g.name);
+        navigator.clipboard.writeText(link);
+        showToast('Invite link copied');
+      };
+    });
+  }
+
+  function buildMemberChips(){
+    grpMembers.innerHTML = '';
+    db.users.forEach(u=> grpMembers.appendChild(memberChip(u)));
+  }
+  function memberChip(name){
+    const d = el(
+      '<label class="flex items-center gap-2 bg-gray-700 rounded-xl px-2 py-1">' +
+        '<input type="checkbox" class="scale-110" checked>' +
+        '<span>'+name+'</span>' +
+      '</label>'
+    );
+    return d;
+  }
+  document.getElementById('btnAddMember').onclick = ()=>{
+    const name = prompt('Member name?');
+    if(!name) return;
+    if(!db.users.includes(name)) db.users.push(name);
+    grpMembers.appendChild(memberChip(name));
+  };
+  document.getElementById('btnSaveGroup').onclick = ()=>{
+    const name = document.getElementById('grpName').value.trim();
+    const type = document.getElementById('grpType').value || 'Regular';
+    const members = Array.from(grpMembers.querySelectorAll('label'))
+      .filter(l=>l.querySelector('input').checked)
+      .map(l=>l.querySelector('span').textContent);
+    if(!name || members.length<2) { alert('Enter name and pick at least 2 members'); return; }
+    db.groups.push({ id:uid(), name, type, members});
+    store.save(db);
+    closeAllModals();
+    render();
+    showToast('Group created');
+  };
+
+  function groupExpenses(gid){
+    return db.expenses.filter(e=>e.gId===gid);
+  }
+
+  function calcGroupBalances(gid){
+    const g = db.groups.find(x=>x.id===gid);
+    const bal = {};
+    g.members.forEach(m=>{ bal[m]=0; });
+    groupExpenses(gid).forEach(function(e){
+      bal[e.payer] += e.amount;
+      Object.entries(e.split).forEach(function(pair){
+        const m = pair[0], share = pair[1];
+        bal[m] -= share;
+      });
+    });
+    Object.keys(bal).forEach(k=>{ bal[k] = +bal[k].toFixed(2); });
+    return bal;
+  }
+
+  function calcGroupFairness(gid){
+    const g = db.groups.find(x=>x.id===gid);
+    if(!g) return {};
+    const members = g.members;
+    const stats = {};
+    members.forEach(m=>{ stats[m] = { paid:0, fair:0, delta:0 }; });
+    const exps = groupExpenses(gid);
+    exps.forEach(function(e){
+      const size = g.members.length || Object.keys(e.split||{}).length || 1;
+      const shareEach = e.amount / size;
+      members.forEach(m=>{ stats[m].fair += shareEach; });
+      if(stats[e.payer]) stats[e.payer].paid += e.amount;
+    });
+    members.forEach(function(m){
+      stats[m].paid = +stats[m].paid.toFixed(2);
+      stats[m].fair = +stats[m].fair.toFixed(2);
+      stats[m].delta = +(stats[m].paid - stats[m].fair).toFixed(2);
+    });
+    return stats;
+  }
+
+  function calcTrustScores(gid){
+    const g = db.groups.find(x=>x.id===gid);
+    if(!g) return {};
+    const now = Date.now();
+    const exps = groupExpenses(gid);
+    const result = {};
+    g.members.forEach(m=>{ result[m] = {days:0,count:0,avgDays:null,label:''}; });
+    exps.forEach(function(e){
+      const created = e.created || now;
+      const involved = Object.keys(e.split||{});
+      involved.forEach(function(m){
+        if(!(e.split && e.split[m] > 0)) return;
+        if(!result[m]) return;
+        let endTime = null;
+        if(e.status === 'paid' && e.settledAt) endTime = e.settledAt;
+        else if(e.status === 'unpaid') endTime = now;
+        if(!endTime) return;
+        const days = (endTime - created)/86400000;
+        result[m].days += days;
+        result[m].count += 1;
+      });
+    });
+    g.members.forEach(function(m){
+      const r = result[m];
+      if(r.count>0){
+        const avg = r.days / r.count;
+        r.avgDays = +avg.toFixed(1);
+        if(avg <= 1) r.label = '⚡ Fast payer';
+        else if(avg <= 5) r.label = '🙂 Decent';
+        else r.label = '😴 Slow';
+      } else {
+        r.avgDays = null;
+        r.label = 'No data yet';
+      }
+    });
+    return result;
+  }
+
+  function calcTripStats(gid){
+    const g = db.groups.find(x=>x.id===gid);
+    if(!g) return null;
+    const exps = groupExpenses(gid);
+    if(!exps.length) return null;
+    let total = 0;
+    let minDate = null, maxDate = null;
+    const byPayer = {};
+    exps.forEach(function(e){
+      total += e.amount;
+      const dStr = e.date || new Date(e.created).toISOString().slice(0,10);
+      const d = new Date(dStr);
+      if(!minDate || d < minDate) minDate = d;
+      if(!maxDate || d > maxDate) maxDate = d;
+      byPayer[e.payer] = (byPayer[e.payer]||0) + e.amount;
+    });
+    const perPerson = total / (g.members.length || 1);
+    let biggestName = null, biggestAmount = 0;
+    Object.keys(byPayer).forEach(function(p){
+      if(byPayer[p] > biggestAmount){ biggestAmount = byPayer[p]; biggestName = p; }
+    });
+    const days = minDate && maxDate ? Math.round((maxDate - minDate)/86400000)+1 : 1;
+    return {
+      total:+total.toFixed(2),
+      perPerson:+perPerson.toFixed(2),
+      days,
+      biggestName,
+      biggestAmount:+biggestAmount.toFixed(2)
+    };
+  }
+
+  function simplifyDebts(bal){
+    const debtors = Object.entries(bal).filter(e=>e[1]<0).map(e=>({m:e[0], v:-e[1]}));
+    const creditors = Object.entries(bal).filter(e=>e[1]>0).map(e=>({m:e[0], v:e[1]}));
+    debtors.sort((a,b)=>b.v-a.v);
+    creditors.sort((a,b)=>b.v-a.v);
+    const tx = []; let i=0,j=0;
+    while(i<debtors.length && j<creditors.length){
+      const pay = Math.min(debtors[i].v, creditors[j].v);
+      tx.push({ from: debtors[i].m, to: creditors[j].m, amount: +pay.toFixed(2) });
+      debtors[i].v -= pay; creditors[j].v -= pay;
+      if(debtors[i].v < 0.01) i++;
+      if(creditors[j].v < 0.01) j++;
+    }
+    return tx;
+  }
+
+  function markGroupSettled(gid){
+    const now = Date.now();
+    db.expenses.filter(e=>e.gId===gid && e.status==='unpaid')
+      .forEach(e=>{
+        e.status='paid';
+        e.settledAt = now;
+      });
+    store.save(db);
+  }
+
+  const modalGroupView = document.getElementById('modalGroupView');
+  function renderGroupTransfers(balances){
+    const txWrap = document.getElementById('gvTx');
+    txWrap.innerHTML = '';
+    const tx = simplifyDebts(balances);
+    if(!tx.length){
+      txWrap.innerHTML = '<div class="text-xs text-gray-400">All settled — nothing to transfer 🎉</div>';
+      return;
+    }
+    tx.forEach(function(t){
+      const lineText = t.from + ' → ' + t.to + ': ' + fmt(t.amount);
+      const row = el(
+        '<div class="flex items-center justify-between bg-gray-800 rounded-xl px-3 py-1">' +
+          '<div>'+lineText+'</div>' +
+          '<button class="text-[11px] underline" data-copy="'+lineText+'">Copy</button>' +
+        '</div>'
+      );
+      txWrap.appendChild(row);
+    });
+    txWrap.querySelectorAll('[data-copy]').forEach(function(btn){
+      btn.onclick = function(){
+        const txt = btn.getAttribute('data-copy');
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText('Settle up: ' + txt);
+          showToast('Copied suggestion');
+        } else {
+          alert('Settle up: ' + txt);
+        }
+      };
+    });
+  }
+
+  // ===== Group view + "Share Statement" guest link =====
+  function openGroupView(gid){
+    const g = db.groups.find(x=>x.id===gid);
+    if(!g) return;
+    document.getElementById('gvTitle').textContent = g.name;
+    document.getElementById('gvMembers').textContent = 'Members: ' + g.members.join(', ');
+
+    const tripBox = document.getElementById('gvTrip');
+    tripBox.innerHTML = '';
+    if(g.type === 'Trip'){
+      const ts = calcTripStats(gid);
+      if(ts){
+        tripBox.innerHTML =
+          '<div class="mt-1">Trip total: <b>'+fmt(ts.total)+'</b> • Per person: <b>'+fmt(ts.perPerson)+'</b></div>' +
+          '<div>Length: '+ts.days+' day(s)' +
+          (ts.biggestName ? ' • Biggest spender: '+ts.biggestName+' ('+fmt(ts.biggestAmount)+')' : '') +
+          '</div>';
+      }
+    }
+
+    const balances = calcGroupBalances(gid);
+    const gvBalances = document.getElementById('gvBalances');
+    gvBalances.innerHTML = '';
+    Object.entries(balances).forEach(function(entry){
+      const m = entry[0], bal = entry[1];
+      const line = el(
+        '<div class="flex justify-between bg-gray-700 rounded-xl px-3 py-2">' +
+          '<div>'+m+'</div>' +
+          '<div class="'+(bal>=0?'text-green-400':'text-red-400')+'">'+fmt(bal)+'</div>' +
+        '</div>'
+      );
+      gvBalances.appendChild(line);
+    });
+
+    const fairness = calcGroupFairness(gid);
+    const trust = calcTrustScores(gid);
+    const gvMeta = document.getElementById('gvMeta');
+    gvMeta.innerHTML = '';
+    Object.keys(fairness).forEach(function(m){
+      const f = fairness[m];
+      const t = trust[m] || {};
+      const sign = f.delta>0?'+':'';
+      const deltaStr = sign + f.delta.toFixed(2);
+      const label = t.label || '';
+      const daysStr = (t.avgDays!=null) ? (' • '+t.avgDays+'d avg') : '';
+      const html =
+        '<div class="flex justify-between bg-gray-800 rounded-xl px-3 py-1">' +
+          '<div>'+m+'</div>' +
+          '<div class="text-[11px] text-gray-300 text-right">' +
+            '<div>'+deltaStr+' vs fair</div>' +
+            '<div>'+label+daysStr+'</div>' +
+          '</div>' +
+        '</div>';
+      gvMeta.appendChild(el(html));
+    });
+
+    renderGroupTransfers(balances);
+
+    document.getElementById('btnSimplify').onclick = ()=>{
+      renderGroupTransfers(balances);
+      showToast('Updated settle suggestions');
+    };
+    document.getElementById('btnSettleAll').onclick = ()=>{
+      markGroupSettled(gid);
+      closeAllModals();
+      render();
+      showToast('Group settled');
+    };
+
+    // Add "Share Statement" (guest link)
+    const actionsWrap = modalGroupView.querySelector('.space-y-2.mt-2');
+    let shareStmtBtn = document.getElementById('btnShareStatement');
+    if(!shareStmtBtn){
+      shareStmtBtn = el('<button id="btnShareStatement" class="w-full bg-gray-700 rounded-xl px-3 py-2">🔗 Share Statement</button>');
+      actionsWrap.appendChild(shareStmtBtn);
+    }
+    shareStmtBtn.onclick = () => {
+      const g = db.groups.find(x => x.id === gid);
+      const balancesArr = Object.entries(calcGroupBalances(gid)).map(([name, v]) => ({
+        name, amount: fmt(v)
+      }));
+      const tx = simplifyDebts(calcGroupBalances(gid)).map(t => ({
+        from: t.from, to: t.to, amount: fmt(t.amount)
+      }));
+      const payload = {
+        v: 1,
+        kind: 'statement',
+        data: {
+          groupName: g?.name || 'Group',
+          members: g?.members || [],
+          balances: balancesArr,
+          transfers: tx
+        }
+      };
+      const link = location.origin + location.pathname + '#guest=' + b64urlEncode(payload);
+      navigator.clipboard.writeText(link);
+      showToast('Statement link copied');
+    };
+
+    modalGroupView.classList.remove('hidden');
+    modalGroupView.classList.add('flex');
+  }
+
+  // ===== Analytics =====
+  const modalAnalytics = document.getElementById('modalAnalytics');
+  function openAnalytics(){
+    modalAnalytics.classList.remove('hidden');
+    modalAnalytics.classList.add('flex');
+    renderAnalytics();
+  }
+
+  function monthlyBuckets(){
+    const map = new Map();
+    db.expenses.forEach(function(e){
+      const m = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
+      map.set(m, (map.get(m)||0) + e.amount);
+    });
+    return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0]));
+  }
+
+  let chart;
+  function renderAnalytics(){
+    const ctx = document.getElementById('chartMonthly');
+    const data = monthlyBuckets();
+    const labels = data.map(d=>d[0]);
+    const values = data.map(d=>+d[1].toFixed(2));
+    if(chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[{ label:'Total Expenses', data: values }]
+      },
+      options:{
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true } }
+      }
+    });
+
+    const total = values.reduce((a,b)=>a+b,0);
+    const maxIdx = values.length ? values.indexOf(Math.max.apply(null, values)) : -1;
+    const insights = document.getElementById('insights');
+    insights.innerHTML = '<div class="mt-2">Total recorded: <b>'+fmt(total)+
+      '</b>. Peak month: <b>'+(labels[maxIdx]||'—')+'</b>.</div>';
+  }
+
+  // ===== Others tab =====
+  function renderOthers(){
+    toolbar.innerHTML = '';
+    content.innerHTML = '';
+    const list = db.expenses.filter(function(e){
+      return e.status!=='paid' && e.payer!==currentUser() && (e.split[currentUser()]||0)>0;
+    });
+    if(!list.length){
+      content.appendChild(el('<div class="text-center text-gray-400 py-8">No expenses from others yet</div>'));
+      return;
+    }
+    list.sort((a,b)=>b.created-a.created)
+        .forEach(e=> content.appendChild(expenseCard(e, true)));
+  }
+
+  // ===== Mine tab =====
+  function renderMine(){
+    toolbar.innerHTML =
+      '<div class="flex items-center justify-between">' +
+        '<div class="text-sm font-semibold">Expenses</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<input id="searchBox"' +
+            ' class="bg-gray-700 rounded-lg h-8 w-28 sm:w-36 px-2 text-xs ml-8' +
+                   ' placeholder:text-[11px] focus:outline-none focus:ring-2 focus:ring-orange-500/30"' +
+            ' placeholder="Search"/>' +
+          '<select id="filterCat" class="bg-gray-700 rounded-xl px-2 py-1 text-sm">' +
+            '<option value="">All</option><option>Food</option><option>Rent</option><option>Utilities</option><option>Transport</option><option>Shopping</option><option>Travel</option>' +
+          '</select>' +
+          '<button id="btnReminders" class="px-3 py-1 rounded bg-gray-700 text-sm">🔔</button>' +
+          '<button id="btnFilterOverdue" class="px-3 py-1 rounded bg-gray-700 text-sm">⏰</button>' +
+        '</div>' +
+      '</div>';
+    const searchBox = toolbar.querySelector('#searchBox');
+    const filterCat = toolbar.querySelector('#filterCat');
+
+    content.innerHTML = '';
+    const all = db.expenses.filter(e=>e.payer===currentUser());
+    if(!all.length){
+      content.appendChild(el('<div class="text-center text-gray-400 py-8">Add your first expense</div>'));
+      return;
+    }
+
+    const apply = ()=>{
+      content.innerHTML='';
+      const q = (searchBox.value||'').toLowerCase();
+      const fc = filterCat.value;
+      let items = all.filter(function(e){
+        const note = (e.note||'').toLowerCase();
+        const nm = (e.name||'').toLowerCase();
+        return (!q || nm.includes(q) || note.includes(q)) && (!fc || e.category===fc);
+      });
+      items.sort((a,b)=>b.created - a.created)
+           .forEach(e=> content.appendChild(expenseCard(e)));
+      refreshKPI();
+    };
+    searchBox.oninput = apply;
+    filterCat.onchange = apply;
+    apply();
+
+    document.getElementById('btnReminders').onclick = ()=> runSmartReminders();
+    document.getElementById('btnFilterOverdue').onclick = ()=>{
+      content.querySelectorAll('[data-due]').forEach(function(n){
+        n.classList.toggle('hidden', n.dataset.due!=='overdue');
+      });
+    };
+  }
+
+  // ===== Expense card + "Share" guest link =====
+  function expenseCard(e, showSettle){
+    const g = db.groups.find(x=>x.id===e.gId);
+    const dueState = e.due ? (Date.now()>e.due ? 'overdue' : 'due') : 'none';
+    const wrap = el('<div class="bg-gray-700 rounded-2xl p-3 space-y-2" data-due="'+dueState+'"></div>');
+    const baseCur = baseCurrency();
+    const hasOrig = e.origCurrency && e.origCurrency !== baseCur && e.origAmount;
+
+    let headHtml =
+      '<div class="flex items-center justify-between">' +
+        '<div>' +
+          '<div class="text-xs text-gray-300">'+((e.date||'').slice(0,10))+' • '+(g?.name||'—')+' • '+e.category+'</div>' +
+          '<div class="font-medium">'+e.name+'</div>';
+    if(e.note){
+      headHtml += '<div class="text-xs text-gray-400">'+e.note+'</div>';
+    }
+    if(hasOrig){
+      headHtml += '<div class="text-[11px] text-gray-400">From '+e.origCurrency+' '+e.origAmount.toFixed(2) +
+                  (e.fxRate ? (' @ '+e.fxRate) : '') + '</div>';
+    }
+    headHtml +=
+        '</div>' +
+        '<div class="text-right">' +
+          '<div class="font-semibold">'+fmt(e.amount)+'</div>' +
+          '<div class="flex justify-end gap-1">' +
+            '<span class="chip '+(e.status==='paid'?'bg-green-700':'bg-yellow-700')+'">'+(e.status==='paid'?'Paid':'Unpaid')+'</span>' +
+            (dueState==='overdue'
+              ? '<span class="chip bg-red-700">Overdue</span>'
+              : (dueState==='due' ? '<span class="chip bg-gray-600">Due</span>' : '')
+            ) +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    const head = el(headHtml);
+    wrap.appendChild(head);
+
+    const splitLines = Object.entries(e.split).map(function(pair){
+      const m = pair[0], x = pair[1];
+      return '<div class="flex justify-between text-sm"><span>'+m+'</span><span>'+fmt(x)+'</span></div>';
+    }).join('');
+    wrap.appendChild(el('<div class="bg-gray-800 rounded-xl p-2">'+splitLines+'</div>'));
+
+    const actions = el(
+      '<div class="flex items-center justify-between text-sm">' +
+        '<div class="space-x-2">' +
+          '<button data-remind="'+e.id+'" class="px-2 py-1 rounded bg-orange-500">Remind</button>' +
+          '<button data-paid="'+e.id+'" class="px-2 py-1 rounded bg-gray-900">'+(e.status==='paid'?'Unmark':'Mark paid')+'</button>' +
+          '<button data-share="'+e.id+'" class="px-2 py-1 rounded bg-gray-900">Share</button>' +
+        '</div>' +
+        '<div class="space-x-2">' +
+          '<button data-edit="'+e.id+'" class="px-2 py-1 rounded bg-gray-900">Edit</button>' +
+          '<button data-del="'+e.id+'" class="px-2 py-1 rounded bg-red-600">Delete</button>' +
+        '</div>' +
+      '</div>'
+    );
+    wrap.appendChild(actions);
+
+    if(showSettle){
+      const owe = e.split[currentUser()] || 0;
+      wrap.appendChild(el(
+        '<div class="pt-1 text-xs text-gray-300">' +
+          'You owe '+fmt(owe)+'. ' +
+          '<button data-pay="'+e.id+'" class="underline">Pay now</button>' +
+        '</div>'
+      ));
+    }
+
+    if(e.remindAt && Date.now()>e.remindAt && e.status==='unpaid'){
+      wrap.appendChild(el('<div class="text-xs text-yellow-300">🔔 Reminder pending</div>'));
+    }
+
+    actions.querySelector('[data-remind]').onclick = ()=>{
+      alert('Reminder sent! 📧');
+      e.remindAt = Date.now()+3*864e5;
+      store.save(db);
+      showToast('Reminder scheduled');
+    };
+    actions.querySelector('[data-paid]').onclick = ()=>{
+      if(e.status === 'paid'){
+        e.status = 'unpaid';
+        e.settledAt = null;
+      } else {
+        e.status = 'paid';
+        e.settledAt = Date.now();
+      }
+      store.save(db);
+      render();
+    };
+    actions.querySelector('[data-del]').onclick = ()=>{
+      if(confirm('Delete expense?')) {
+        db.expenses = db.expenses.filter(x=>x.id!==e.id);
+        store.save(db);
+        render();
+      }
+    };
+    actions.querySelector('[data-edit]').onclick = ()=>{
+      db._editingId = e.id;
+      openAddExpense(e.id);
+    };
+    actions.querySelector('[data-share]').onclick = ()=>{
+      const g = db.groups.find(x=>x.id===e.gId);
+      const shares = Object.entries(e.split).map(([name, amt])=>({
+        name,
+        amount: fmt(amt)
+      }));
+      const payload = {
+        v: 1,
+        kind: 'expense',
+        data: {
+          name: e.name,
+          date: e.date,
+          groupName: g?.name || 'Group',
+          payer: e.payer,
+          amount: fmt(e.amount),
+          shares
+        }
+      };
+      const link = location.origin + location.pathname + '#guest=' + b64urlEncode(payload);
+      navigator.clipboard.writeText(link);
+      showToast('Expense link copied');
+    };
+
+    return wrap;
+  }
+
+  // Event delegation for "Pay now"
+  content.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-pay]');
+    if (!btn) return;
+    openPayment(btn.getAttribute('data-pay'));
+  });
+
+  function editExpense(id){ db._editingId = id; openAddExpense(id); }
+
+  // ===== Notifications modal =====
+  const modalNotifications = document.getElementById('modalNotifications');
+
+  function runSmartReminders(){
+    const now = Date.now();
+    const dueSoon = db.expenses.filter(e=>{
+      return e.status==='unpaid' && e.remindAt && now>e.remindAt;
+    });
+    const overdue = db.expenses.filter(e=>{
+      return e.status==='unpaid' && e.due && now>e.due;
+    });
+    const iOwe = db.expenses.filter(e=>{
+      return e.status==='unpaid' && e.payer!==currentUser() && (e.split[currentUser()]||0)>0;
+    });
+
+    const listEl = document.getElementById('notifList');
+    listEl.innerHTML = '';
+
+    if(!dueSoon.length && !overdue.length && !iOwe.length){
+      listEl.innerHTML = '<div class="text-sm text-gray-400">No pending reminders. You are all caught up 🎉</div>';
+    } else {
+      if(overdue.length){
+        listEl.appendChild(el('<div class="text-xs text-red-400 font-semibold mt-1">Overdue</div>'));
+        overdue.forEach(function(e){
+          const share = e.split[currentUser()] || 0;
+          listEl.appendChild(el(
+            '<div class="bg-gray-700 rounded-xl px-3 py-2 text-xs">' +
+              '<div>'+e.name+' • '+(e.date||'')+'</div>' +
+              '<div>You owe '+fmt(share)+' in '+(db.groups.find(g=>g.id===e.gId)?.name||'group')+'</div>' +
+            '</div>'
+          ));
+        });
+      }
+      if(dueSoon.length){
+        listEl.appendChild(el('<div class="text-xs text-yellow-300 font-semibold mt-2">Reminders</div>'));
+        dueSoon.forEach(function(e){
+          listEl.appendChild(el(
+            '<div class="bg-gray-700 rounded-xl px-3 py-2 text-xs">' +
+              '<div>'+e.name+' • '+(e.date||'')+'</div>' +
+              '<div>Reminder ready for this unpaid expense.</div>' +
+            '</div>'
+          ));
+        });
+      }
+      if(iOwe.length){
+        listEl.appendChild(el('<div class="text-xs text-gray-300 font-semibold mt-2">You still owe</div>'));
+        iOwe.forEach(function(e){
+          const share = e.split[currentUser()] || 0;
+          listEl.appendChild(el(
+            '<div class="bg-gray-700 rounded-xl px-3 py-2 text-xs">' +
+              '<div>'+e.name+' • '+(e.date||'')+'</div>' +
+              '<div>You owe '+fmt(share)+' to '+e.payer+'</div>' +
+            '</div>'
+          ));
+        });
+      }
+    }
+
+    modalNotifications.classList.remove('hidden');
+    modalNotifications.classList.add('flex');
+
+    dueSoon.forEach(e=>{ e.remindAt = now+3*864e5; });
+    store.save(db);
+  }
+
+  // ===== Import/export/reset/demo =====
+  document.getElementById('btnExport').onclick = ()=>{
+    const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='cashmeup.json'; a.click(); URL.revokeObjectURL(url);
+  };
+  document.getElementById('fileImport').onchange = (e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=>{
+      try{
+        db = JSON.parse(r.result);
+        store.save(db);
+        render();
+        showToast('Imported');
+      }catch{
+        alert('Invalid JSON');
+      }
+    };
+    r.readAsText(f);
+  };
+  document.getElementById('btnReset').onclick = ()=>{
+    if(confirm('Reset all data?')) {
+      localStorage.removeItem(store.key);
+      db = store.load();
+      seedDemo();
+      render();
+    }
+  };
+
+  document.getElementById('btnDemo').onclick = ()=>{
+    if(confirm('Replace current data with demo dataset?')){
+      localStorage.removeItem(store.key);
+      db = store.load();
+      seedDemo();
+      render();
+      showToast('Demo data loaded');
+    }
+  };
+
+  function currentUser(){ return db.profile?.name || 'Divyansh'; }
+
+  // ===== KPI =====
+  function refreshKPI(){
+    const mine = db.expenses.filter(e=>e.payer===currentUser() && e.status==='unpaid');
+    const total = mine.reduce((s,e)=>s+e.amount, 0);
+    const owedToMe = mine.reduce(function(s,e){
+      const myShare = e.split[currentUser()]||0;
+      return s + (e.amount - myShare);
+    }, 0);
+    const iOwe = db.expenses.filter(e=>{
+      return e.status==='unpaid' && e.payer!==currentUser();
+    }).reduce((s,e)=> s + (e.split[currentUser()]||0), 0);
+    document.getElementById('hdrTotal').textContent = fmt(total);
+    document.getElementById('kpiUnpaid').textContent = mine.length;
+    document.getElementById('kpiOwedToMe').textContent = fmt(owedToMe);
+    document.getElementById('kpiIOwe').textContent = fmt(iOwe);
+  }
+
+  function recentExpenses(days){
+    const now = Date.now();
+    const cutoff = now - days*86400000;
+    return db.expenses.filter(e=> e.created && e.created >= cutoff);
+  }
+
+  function fairnessForUser(user){
+    const rec = recentExpenses(30).filter(e=>{
+      return e.split && e.split[user]>0;
+    });
+    if(!rec.length) return null;
+    let myPaid = 0;
+    let myFair = 0;
+    rec.forEach(function(e){
+      if(e.payer === user) myPaid += e.amount;
+      const g = db.groups.find(x=>x.id===e.gId);
+      const size = g ? g.members.length : Object.keys(e.split||{}).length || 1;
+      myFair += e.amount / size;
+    });
+    myPaid = +myPaid.toFixed(2);
+    myFair = +myFair.toFixed(2);
+    const delta = +(myPaid - myFair).toFixed(2);
+    return { myPaid, myFair, delta };
+  }
+
+  // ===== Profile tab =====
+  function renderProfile(){
+    toolbar.innerHTML = '';
+    const totalAll = db.expenses.reduce((s,e)=>s+e.amount,0);
+    const myPaid = db.expenses.filter(e=>e.payer===currentUser()).reduce((s,e)=>s+e.amount,0);
+    const myOwe = db.expenses.filter(e=>{
+      return e.status!=='paid' && e.payer!==currentUser();
+    }).reduce((s,e)=> s+(e.split[currentUser()]||0),0);
+
+    const fair = fairnessForUser(currentUser());
+    let fairnessHtml = '';
+    if(fair){
+      const sign = fair.delta>0?'+':'';
+      const status = fair.delta>0 ? 'You have overpaid a bit recently.' :
+                     fair.delta<0 ? 'You are slightly underpaying.' :
+                     'Perfectly balanced.';
+      fairnessHtml =
+        '<div class="bg-gray-700 rounded-2xl p-3 mt-2 text-xs text-gray-300">' +
+          '<div class="font-semibold mb-1">Fairness (last 30 days)</div>' +
+          '<div>You paid '+fmt(fair.myPaid)+' vs fair share about '+fmt(fair.myFair)+' ('+sign+fair.delta.toFixed(2)+').</div>' +
+          '<div>'+status+'</div>' +
+        '</div>';
+    }
+
+    content.innerHTML =
+      '<div class="bg-gray-700 rounded-2xl p-3 mb-2 flex items-center gap-3">' +
+        '<div class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-xl font-bold">'+(currentUser()[0]||'U').toUpperCase()+'</div>' +
+        '<div><div class="font-semibold text-lg">'+currentUser()+'</div><div class="text-xs text-gray-300">'+(db.profile?.currency||'USD')+'</div></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-3 gap-2 text-sm mb-2">' +
+        '<div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">'+fmt(totalAll)+'</div><div>Total</div></div>' +
+        '<div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">'+fmt(myPaid)+'</div><div>Paid</div></div>' +
+        '<div class="bg-gray-700 rounded-xl py-2 text-center"><div class="font-bold">'+fmt(myOwe)+'</div><div>To Pay</div></div>' +
+      '</div>' +
+      (fairnessHtml || '') +
+      '<div class="bg-gray-700 rounded-2xl p-3 mt-2">' +
+        '<div class="font-semibold mb-1">Timeline</div>' +
+        '<div id="timeline" class="space-y-2"></div>' +
+      '</div>' +
+      '<div class="bg-gray-700 rounded-2xl p-3 mt-2">' +
+        '<div class="font-semibold mb-1">Monthly Budgets</div>' +
+        '<div id="budgetsList" class="space-y-1 text-xs text-gray-300"></div>' +
+      '</div>' +
+      '<div class="mt-2">' +
+        '<button id="btnProfileAnalytics" class="w-full bg-gray-700 rounded-xl px-3 py-2">📈 View Insights</button>' +
+      '</div>';
+
+    const tl = document.getElementById('timeline');
+    const grouped = {};
+    db.expenses.slice().sort((a,b)=>b.created-a.created).forEach(function(e){
+      const key = (e.date||'').slice(0,7) || new Date(e.created).toISOString().slice(0,7);
+      if(!grouped[key]) grouped[key] = [];
+      grouped[key].push(e);
+    });
+    Object.entries(grouped).forEach(function(entry){
+      const m = entry[0], arr = entry[1];
+      const section = el('<div><div class="text-xs text-gray-300">'+m+'</div></div>');
+      arr.forEach(function(e){
+        section.appendChild(el(
+          '<div class="flex justify-between bg-gray-800 rounded-xl px-3 py-2 mt-1">' +
+            '<div class="text-sm">'+e.name+' <span class="text-gray-400">• '+e.category+'</span></div>' +
+            '<div class="text-sm">'+fmt(e.amount)+'</div>' +
+          '</div>'
+        ));
+      });
+      tl.appendChild(section);
+    });
+
+    const bl = document.getElementById('budgetsList');
+    const budgets = db.profile?.budgets || {};
+    Object.keys(budgets).forEach(function(cat){
+      const limit = budgets[cat];
+      const today = new Date().toISOString().slice(0,10);
+      const used = monthlySpendForCategory(cat, today);
+      const row = el(
+        '<div class="flex items-center justify-between bg-gray-800 rounded-xl px-3 py-1">' +
+          '<div>'+cat+'</div>' +
+          '<div class="flex items-center gap-2">' +
+            '<span>'+fmt(used)+' / '+fmt(limit)+'</span>' +
+            '<input data-budget="'+cat+'" type="number" class="w-20 bg-gray-700 rounded px-1 py-0.5 text-[11px]" value="'+limit+'"/>' +
+          '</div>' +
+        '</div>'
+      );
+      bl.appendChild(row);
+    });
+    bl.querySelectorAll('[data-budget]').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        const cat = inp.getAttribute('data-budget');
+        const v = +inp.value || 0;
+        if(!db.profile.budgets) db.profile.budgets = {};
+        db.profile.budgets[cat] = v;
+        store.save(db);
+        showToast('Budget updated');
+      });
+    });
+
+    document.getElementById('btnProfileAnalytics').onclick = openAnalytics;
+  }
+
+  // ===== Render router =====
+  function render(){
+    if(currentTab==='mine') renderMine();
+    else if(currentTab==='others') renderOthers();
+    else if(currentTab==='groups') renderGroupsScreen();
+    else if(currentTab==='profile') renderProfile();
+    refreshKPI();
+  }
+
+  function el(html){
+    const d=document.createElement('div');
+    d.innerHTML=html.trim();
+    return d.firstElementChild;
+  }
+
+  // ===== Demo seed data =====
+  function seedDemo(){
+    if(!db.groups.length){
+      db.groups.push({ id: uid(), name: 'Roommates', type:'Regular', members:['Divyansh','Mustafa','Minjun'] });
+      db.groups.push({ id: uid(), name: 'Europe Trip', type:'Trip', members:['Divyansh','Mustafa','Rafsaan'] });
+      db.groups.push({ id: uid(), name: 'Birthday Party', type:'Event', members:['Divyansh','Mustafa','Minjun','Rafsaan'] });
+    } else {
+      db.groups.forEach(function(g){
+        if(!g.type) g.type='Regular';
+      });
+    }
+    const gRoom = db.groups[0].id;
+    const gTrip = db.groups[1]?.id || gRoom;
+    const gEvent = db.groups[2]?.id || gRoom;
+
+    if(db.expenses.length===0){
+      const today = new Date();
+      const todayStr = today.toISOString().slice(0,10);
+      const day = 86400000;
+
+      db.expenses.push(
+        {
+          id:uid(), name:'Dinner', amount:45.00, date:todayStr, gId:gRoom,
+          payer:'Mustafa', category:'Food', note:'Pizza & wings',
+          split:{'Divyansh':15,'Mustafa':15,'Minjun':15},
+          status:'unpaid', created:Date.now()-2*day,
+          due:null, remindAt:null, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        },
+        {
+          id:uid(), name:'Gas', amount:20.99, date:todayStr, gId:gRoom,
+          payer:'Divyansh', category:'Transport', note:'',
+          split:{'Divyansh':7,'Mustafa':7,'Minjun':6.99},
+          status:'unpaid', created:Date.now()-1*day,
+          due:Date.now()+2*day, remindAt:Date.now()+1*day, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        },
+        {
+          id:uid(), name:'Hydro', amount:78.50, date:todayStr, gId:gRoom,
+          payer:'Divyansh', category:'Utilities', note:'',
+          split:{'Divyansh':26.17,'Mustafa':26.17,'Minjun':26.16},
+          status:'unpaid', created:Date.now()-3*day,
+          due:Date.now()-1*day, remindAt:null, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        },
+        // Trip group
+        {
+          id:uid(), name:'Flight tickets', amount:900, date:todayStr, gId:gTrip,
+          payer:'Divyansh', category:'Travel', note:'YYZ → LIS',
+          split:{'Divyansh':300,'Mustafa':300,'Rafsaan':300},
+          status:'paid', created:Date.now()-15*day,
+          due:null, remindAt:null, origAmount:null, origCurrency:null, fxRate:null, settledAt:Date.now()-10*day
+        },
+        {
+          id:uid(), name:'Hostel', amount:360, date:todayStr, gId:gTrip,
+          payer:'Mustafa', category:'Travel', note:'3 nights',
+          split:{'Divyansh':120,'Mustafa':120,'Rafsaan':120},
+          status:'unpaid', created:Date.now()-12*day,
+          due:Date.now()-2*day, remindAt:Date.now()-1*day, origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        },
+        // Event group
+        {
+          id:uid(), name:'Birthday Cake', amount:60, date:todayStr, gId:gEvent,
+          payer:'Minjun', category:'Food', note:'Custom chocolate cake',
+          split:{'Divyansh':15,'Mustafa':15,'Minjun':15,'Rafsaan':15},
+          status:'paid', created:Date.now()-7*day,
+          due:null, remindAt:null,
+          origAmount:null, origCurrency:null, fxRate:null, settledAt:Date.now()-6*day
+        },
+        {
+          id:uid(), name:'Bar tab', amount:150, date:todayStr, gId:gEvent,
+          payer:'Divyansh', category:'Food', note:'Drinks & snacks',
+          split:{'Divyansh':37.5,'Mustafa':37.5,'Minjun':37.5,'Rafsaan':37.5},
+          status:'unpaid', created:Date.now()-2*day,
+          due:Date.now()+3*day, remindAt:Date.now()+1*day,
+          origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        }
+      );
+    } else {
+      const me = currentUser();
+      const hasOthers = db.expenses.some(function(e){
+        return e.status!=='paid' && e.payer!==me && (e.split[me]||0)>0;
+      });
+      if(!hasOthers){
+        db.expenses.push({
+          id:uid(), name:'Coffee Run', amount:12.00,
+          date:new Date().toISOString().slice(0,10),
+          gId:gRoom, payer:'Mustafa', category:'Food', note:'Latte x2',
+          split:{'Divyansh':6,'Mustafa':6}, status:'unpaid',
+          created:Date.now()-5*3600*1000, due:null, remindAt:null,
+          origAmount:null, origCurrency:null, fxRate:null, settledAt:null
+        });
+      }
+    }
+    store.save(db);
+  }
+
+  // Init
+  seedDemo();
+  render();
+
+  if(!db.settings.seenIntro){
+    showToast('Tip: tap ＋ to add an expense, or check Groups to see balances.');
+    db.settings.seenIntro = true;
+    store.save(db);
+  }
+
+  const params = new URLSearchParams(location.search);
+  if(params.get('join')) showToast('Joined '+params.get('join')+' ✅');
+
+} // end !GUEST_MODE
+  </script>
+</body>
+</html>
